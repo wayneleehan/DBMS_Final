@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xxd /Users/wayne/DBMS_Final/requirements.txt)",
+      "Bash(uv --version)"
+    ]
+  }
+}

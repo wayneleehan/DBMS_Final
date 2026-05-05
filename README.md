@@ -49,7 +49,7 @@ DBMS 期末專案。當使用者瀏覽新網站時，瀏覽器擴充套件會即
 | ORM / DB 驅動 | SQLAlchemy 2.0 + PyMySQL |
 | 資料驗證 | Pydantic 2 / pydantic-settings |
 | 資料庫 | MySQL 8.x（本機 / AWS RDS） |
-| 套件管理 | pip + venv（或 uv，可選） |
+| 套件管理 | uv |
 | 推薦 GUI | TablePlus |
 
 ---
@@ -70,25 +70,7 @@ cd DBMS_Final
 
 ## 2. 安裝相依套件
 
-二擇一即可。團隊統一用 **方案 A** 最保險；新加入的可考慮 **方案 B** 享受速度。
-
-### 方案 A：pip + venv（傳統路線）
-
-**macOS / Linux**
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-**Windows (PowerShell)**
-```powershell
-python -m venv venv
-venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-### 方案 B：uv（推薦，速度快 10–100 倍）
+### uv
 
 ```bash
 # 一次性安裝 uv
@@ -247,24 +229,9 @@ git push origin scrum-XX-your-feature
 
 ### 加新依賴
 ```bash
-# 方案 A
-pip install <package>
-# 然後手動把版本加進 requirements.txt（不要整包 pip freeze，會混入 OS 專屬套件）
-
-# 方案 B
 uv pip install <package>
 # 同樣手動更新 requirements.txt
 ```
-
-### 提交前檢查清單
-- [ ] **`git pull` 過了**，本地是最新的 `dev`（避免推上去才衝突）
-- [ ] **沒有修改到別人的舊 `crud` 函式**，只新增了自己的
-- [ ] 新增的 SQL 指令放在**對應資料表的檔案**裡（如 `crud/website.py`）
-- [ ] `.env` **沒有**被 commit（`git status` 確認看不到 `.env`）
-- [ ] 服務跑得起來：`uvicorn app.main:app --reload`
-- [ ] `/test-db` 仍能正常回應
-- [ ] 沒有把 AWS 帳密寫死在程式碼裡
-
 ---
 
 ## 常見問題

@@ -44,7 +44,7 @@ DBMS 期末專案。當使用者瀏覽新網站時，瀏覽器擴充套件會即
 
 | 類別 | 技術 |
 |---|---|
-| 語言 | Python 3.11 |
+| 語言 | Python 3.13 |
 | Web 框架 | FastAPI 0.136 |
 | ORM / DB 驅動 | SQLAlchemy 2.0 + PyMySQL |
 | 資料驗證 | Pydantic 2 / pydantic-settings |
@@ -114,10 +114,6 @@ copy .env.example .env     # Windows
 ## 5. 啟動服務
 
 ```bash
-# 方案 A
-uvicorn app.main:app --reload
-
-# 方案 B
 uv run uvicorn app.main:app --reload
 ```
 

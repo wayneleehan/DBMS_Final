@@ -21,13 +21,13 @@ async function sendVisit(url) {
   }
 }
 
-// Registered at top level so the listener re-attaches every time Chrome wakes
-// the Service Worker (MV3 workers are evicted aggressively when idle).
+// 註冊在最外層,Chrome 每次喚醒 Service Worker 時都會重新掛上 listener
+// (MV3 的 worker 閒置時會被積極回收,寫在函式裡會失效)。
 chrome.tabs.onUpdated.addListener((_tabId, changeInfo, _tab) => {
-  // Only fire when the URL itself changed; ignores title/favicon/load-state events.
+  // 只在 URL 真的改變時才觸發;略過標題、favicon、載入狀態等事件。
   if (!changeInfo.url) return;
 
-  // Skip browser-internal pages — they are not real navigations and clutter logs.
+  // 過濾瀏覽器內部頁面(chrome://、about:blank 等),這些不是真的瀏覽行為,只會洗版 log。
   if (!/^https?:\/\//i.test(changeInfo.url)) return;
 
   sendVisit(changeInfo.url);

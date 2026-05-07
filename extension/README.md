@@ -22,7 +22,7 @@
 
 1. **啟動後端**(在專案根目錄):
    ```bash
-   uvicorn app.main:app --reload
+   uv run uvicorn app.main:app --reload
    ```
 
 2. **先用 Swagger 確認後端 OK**:打開 `http://localhost:8000/docs`,

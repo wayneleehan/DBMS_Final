@@ -2,7 +2,15 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.core.database import get_db 
+from app.api.v1 import admin_review #  引入審核系統的 router
 
+app = FastAPI(title="詐騙聯防預警系統 API")
+
+# app.include_router(warnings.router)
+# app.include_router(appeals.router)
+app.include_router(admin_review.router) #  註冊進主程式
+
+# ... 保持原來的測試路由與根目錄 ...
 app = FastAPI(title="防詐騙預警系統 API")
 
 # 測試 1：根目錄

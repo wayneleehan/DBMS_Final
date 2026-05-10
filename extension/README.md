@@ -41,4 +41,4 @@
 
 - **Service Worker console 沒任何 log** → worker 可能被回收了,再瀏覽一個網頁喚醒它即可。
 - **`Failed to fetch` 或 CORS 錯誤** → 確認後端有跑在 `localhost:8000`,且 `app/main.py` 已加上 CORS middleware。
-- **後端沒收到、擴充功能也沒報錯** → 檢查 `manifest.json` 的 `host_permissions` 是否跟後端網址一致。
+- **後端沒收到、擴充功能也沒  報錯** → 檢查 `manifest.json` 的 `host_permissions` 是否跟後端網址一致。

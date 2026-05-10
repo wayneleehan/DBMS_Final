@@ -5,10 +5,10 @@
     2. 找到 → 拿既有 status / risk_score / site_id
     3. 沒找到 → 呼叫 scoring.score_url() 評分 → 寫入 WEBSITE
 
-⚠️ TODO(auth + Report 表寫入):
-   完整需求其實還要把每次通報寫進 Report 表(crud/report.py 已備好 create_report()),
-   但 Report.User_ID 是 NOT NULL 且 FK 到 USERS,**目前還沒有登入機制可以提供 user_id**。
-   等 auth 接好之後,在這支 service 加回 create_report(db, user_id=current_user.id, site_id=site_id, ...)。
+    TODO(auth + Report 表寫入):
+    完整需求其實還要把每次通報寫進 Report 表(crud/report.py 已備好 create_report()),
+    但 Report.User_ID 是 NOT NULL 且 FK 到 USERS,**目前還沒有登入機制可以提供 user_id**。
+    等 auth 接好之後,在這支 service 加回 create_report(db, user_id=current_user.id, site_id=site_id, ...)。
 """
 
 from __future__ import annotations

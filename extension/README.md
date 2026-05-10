@@ -27,15 +27,35 @@
 
 2. **先用 Swagger 確認後端 OK**:打開 `http://localhost:8000/docs`,
    試 `POST /api/v1/visits`,Body 填 `{"url": "https://example.com"}`。
-   後端 terminal 應該會印出 `📥 Received URL: ...`。
+   後端 terminal 應該會印出 `📥 Visit (...): ...`。
 
 3. **載入擴充功能**(步驟見上方)。
 
 4. **觸發一次網頁瀏覽**:開新分頁,進入 `https://example.com`。
 
 5. **預期看到的結果**:
-   - 後端 terminal:`📥 Received URL: https://example.com`
-   - Service Worker console:`✅ Sent: https://example.com`
+   - 後端 terminal:`📥 Visit (...): https://example.com → <status>/<risk_score>`
+   - Service Worker console:`✅ [<status>] score=<n> (new|existing) → https://example.com`
+   - 工具列上擴充功能圖示會根據 status 貼**彩色徽章**:
+     - 🔴 `X` = Blocked(已封鎖)
+     - 🟠 `!` = Warning(警告)
+     - 🟡 `?` = Low_Risk(待觀察)
+     - (Safe → 沒徽章)
+
+> 💡 想看到徽章,需要把擴充功能**釘選 (pin)** 到工具列:
+> 點瀏覽器右上角拼圖 🧩 → 找到「Web Tracker MVP」→ 點圖釘。
+
+### 系統通知
+
+當後端回傳 `Blocked` 或 `Warning` 時,會在作業系統右上角(macOS)或右下角(Windows)
+**自動跳出原生通知**,顯示警告標題、URL 與風險分數。
+
+- 同一個 URL 在 **30 秒**內只會通知一次,避免來回切分頁洗版。
+- 第一次出現通知時,macOS 可能會問你「是否允許 Google Chrome 通知」,選**允許**。
+- 如果都沒看到通知,檢查:
+  1. macOS 「系統設定 → 通知 → Google Chrome」要打開
+  2. 「勿擾模式 (Do Not Disturb)」沒開
+  3. Service Worker console 沒有 `Unable to download all specified images` 之類的錯誤(代表 icon.png 路徑壞了)
 
 ## 疑難排解
 

@@ -36,7 +36,6 @@ def upsert_website_by_url(db: Session, url: str) -> int:
 # /report API 用的查詢與新增(由 services/report_service.py 編排)
 # ------------------------------------------------------------------
 
-
 def get_website_by_url(db: Session, url: str) -> dict | None:
     """依 URL 查 WEBSITE,有的話回傳 dict,沒有回 None。"""
     row = db.execute(

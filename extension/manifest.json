@@ -3,9 +3,15 @@
   "name": "Web Tracker MVP",
   "version": "0.1.0",
   "description": "Detects URL changes in the browser and forwards them to the local FastAPI backend for the anti-fraud MVP.",
-  "permissions": ["tabs"],
+  "permissions": ["tabs", "notifications"],
   "host_permissions": ["http://localhost:8000/*"],
   "background": {
     "service_worker": "background.js"
+  },
+  "action": {
+    "default_icon": "icon.png"
+  },
+  "icons": {
+    "128": "icon.png"
   }
 }

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.core.database import get_db
-from app.api import visits
+from app.api import reports, visits
 
 app = FastAPI(title="防詐騙預警系統 API")
 
@@ -18,6 +18,7 @@ app.add_middleware(
 )
 
 app.include_router(visits.router)
+app.include_router(reports.router)
 
 # 測試 1：根目錄
 @app.get("/")

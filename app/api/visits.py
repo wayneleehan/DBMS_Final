@@ -1,15 +1,13 @@
-from datetime import datetime
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
-from fastapi import APIRouter
-
-from app.schemas.visit import VisitCreate
+from app.core.database import get_db
+from app.schemas.visit import VisitCreate, VisitResponse
+from app.services.visits_checking import check_visit
 
 router = APIRouter(prefix="/api/v1", tags=["visits"])
 
 
-@router.post("/visits")
-def create_visit(payload: VisitCreate):
-    timestamp = payload.visited_at or datetime.now()
-    print(f"📥 Received URL: {payload.url}")
-    print(f"🕒 Visited at: {timestamp.isoformat()}")
-    return {"status": "ok", "received_url": payload.url}
+@router.post("/visits", response_model=VisitResponse)
+def create_visit(payload: VisitCreate, db: Session = Depends(get_db)):
+    return check_visit(db, url=payload.url, visited_at=payload.visited_at)

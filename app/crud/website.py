@@ -10,6 +10,31 @@ from sqlalchemy.orm import Session
 
 from app.core.database import engine
 
+def create_website_entry(db: Session, url: str, ip: str, score: float, status: str):
+    sql = text("""
+        INSERT INTO WEBSITE (URL, IP_Address, Status, Risk_Score) 
+        VALUES (:url, :ip, :status, :score)
+    """)
+    db.execute(sql, {
+        "url": url, 
+        "ip": ip,      
+        "status": status, 
+        "score": score
+    })
+    db.commit()
+
+def update_website_score(db: Session, site_id: int, score: float, status: str):
+    sql = text("""
+        UPDATE website 
+        SET Risk_Score = :score, Status = :status 
+        WHERE Site_ID = :site_id
+    """)
+    db.execute(sql, {"score": score, "status": status, "site_id": site_id})
+    db.commit()
+
+def get_website_by_url(db: Session, url: str):
+    sql = text("SELECT Site_ID, URL, IP_Address, Status, Risk_Score FROM website WHERE URL = :url")
+    return db.execute(sql, {"url": url}).mappings().first()
 
 def upsert_website_by_url(db: Session, url: str) -> int:
     """確保 URL 在 WEBSITE 表中存在,回傳對應的 Site_ID。
@@ -61,7 +86,7 @@ def create_website(db: Session, url: str, status: str, risk_score: float) -> int
 
 
 # ------------------------------------------------------------------
-# NPA_WEBURL.csv 匯入(警政署詐騙網站清單,一次性 bulk import)
+# NPA_WEBURL.csv 匯入(警政署詐騙網站清單,一次性 import
 # ------------------------------------------------------------------
 
 _NPA_BATCH_SIZE = 1000
@@ -139,3 +164,5 @@ if __name__ == "__main__":
         f"\n✅ 完成,耗時 {elapsed:.1f}s\n"
         f"   新增 {inserted:,} 筆 / 略過 {skipped:,} 筆(URL 已存在)"
     )
+
+

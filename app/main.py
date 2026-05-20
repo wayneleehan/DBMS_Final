@@ -5,7 +5,7 @@ from sqlalchemy import text
 from app.core.database import get_db 
 from app.api.v1 import admin_review #  引入審核系統的 router
 from app.core.database import get_db
-from app.api import visits
+from app.api import reports, visits
 
 app = FastAPI(title="詐騙聯防預警系統 API")
 
@@ -27,6 +27,7 @@ app.add_middleware(
 )
 
 app.include_router(visits.router)
+app.include_router(reports.router)
 
 # 測試 1：根目錄
 @app.get("/")

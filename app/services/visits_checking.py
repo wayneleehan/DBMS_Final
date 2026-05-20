@@ -49,5 +49,5 @@ def check_visit(
         tag = "new (scored)"
 
     ip_log = f" ip={ip_address}" if ip_address else ""
-    print(f"📥 Visit ({tag}): {url}{ip_log} → {result['status']}/{result['risk_score']} @ {timestamp.isoformat()}")
+    print(f"Visit ({tag}): {url}{ip_log} → {result['status']}/{result['risk_score']} @ {timestamp.isoformat()}")
     return result

@@ -2,6 +2,18 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from app.core.database import get_db 
+from fastapi import FastAPI
+from app.api.v1 import warnings # 引入剛剛寫好的 router
+
+app = FastAPI(title="詐騙聯防預警系統 API")
+
+# 註冊預警系統路由
+app.include_router(warnings.router)
+
+@app.get("/")
+def read_root():
+    return {"message": "歡迎來到詐騙聯防預警系統後端"}
 from app.core.database import get_db
 from app.api import reports, visits
 

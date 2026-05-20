@@ -15,7 +15,7 @@ app.include_router(warnings.router)
 def read_root():
     return {"message": "歡迎來到詐騙聯防預警系統後端"}
 from app.core.database import get_db
-from app.api import visits
+from app.api import reports, visits
 
 app = FastAPI(title="防詐騙預警系統 API")
 
@@ -30,6 +30,7 @@ app.add_middleware(
 )
 
 app.include_router(visits.router)
+app.include_router(reports.router)
 
 # 測試 1：根目錄
 @app.get("/")

@@ -15,20 +15,28 @@ def get_status_by_score(score: float) -> str:
     else:
         return "Safe"
 
-def run_scoring_pipeline(db: Session, url: str, background_tasks: BackgroundTasks):
+def run_scoring_pipeline(
+    db: Session,
+    url: str,
+    background_tasks: BackgroundTasks,
+    ip: str | None = None,
+):
     initial_score = 10.0
 
     # 1. 網址關鍵字計分
     sensitive_keywords = ['login', 'verify', 'bank', 'secure', 'account', 'gift']
     keywords_found = [key for key in sensitive_keywords if key in url.lower()]
     initial_score += min(len(keywords_found) * 10.0, 30.0)
-    
+
     # 2. IP 獲取與 server_info 檢查
-    try:
-        hostname = url.split("//")[-1].split("/")[0]
-        ip = socket.gethostbyname(hostname)
-    except:
-        ip = "0.0.0.0"
+    # 優先使用呼叫端傳入的 IP(來自 Chrome extension 用 DOH 解析的結果,反映使用者實際連到的 IP);
+    # 沒有的話再 fallback 自己 DNS lookup
+    if not ip:
+        try:
+            hostname = url.split("//")[-1].split("/")[0]
+            ip = socket.gethostbyname(hostname)
+        except:
+            ip = "0.0.0.0"
 
     # 確保 server_info 表中一定要有這個 IP (避免 1452 外鍵報錯)
     server_info.ensure_server_info_exists(db, ip)
@@ -47,10 +55,10 @@ def run_scoring_pipeline(db: Session, url: str, background_tasks: BackgroundTask
         # 更新現有網址的分數與狀態
         website.update_website_score(db, site_id, initial_score, initial_status)
     else:
-        # 建立新網址紀錄
-        website.create_website_entry(db, url=url, ip=ip, score=initial_score, status=initial_status)
-        new_site = website.get_website_by_url(db, url)
-        site_id = new_site['Site_ID']
+        # 建立新網址紀錄(create_website 會回傳 lastrowid,省一次 SELECT)
+        site_id = website.create_website(
+            db, url=url, ip=ip, status=initial_status, risk_score=initial_score
+        )
     
     # 4. 派發背景深度分析任務
     background_tasks.add_task(deep_analyze_background, db, site_id, url, initial_score)

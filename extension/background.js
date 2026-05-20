@@ -9,14 +9,34 @@ const STATUS_BADGE = {
   Safe:     { text: "",  color: "#000000" },  // 安全 → 清除徽章
 };
 
+// 用 Google DNS-over-HTTPS 把 hostname 解成 IPv4。失敗就回 null,
+// 後端會自己 fallback 做 socket.gethostbyname。
+async function resolveIP(hostname) {
+  try {
+    const url = `https://dns.google/resolve?name=${encodeURIComponent(hostname)}&type=A`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    // Answer 是個 array,每項有 type(1=A record)和 data(IP 字串)
+    const aRecord = data.Answer?.find((a) => a.type === 1);
+    return aRecord?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function checkVisit(tabId, url) {
   try {
+    const hostname = new URL(url).hostname;
+    const ip = await resolveIP(hostname);
+
     const res = await fetch(BACKEND_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         url,
         visited_at: new Date().toISOString(),
+        ip_address: ip,  // 解析失敗會是 null,後端會自己 fallback
       }),
     });
 
@@ -27,7 +47,7 @@ async function checkVisit(tabId, url) {
 
     const data = await res.json();
     const tag = data.is_new ? "new" : "existing";
-    console.log(`✅ [${data.status}] score=${data.risk_score} (${tag}) → ${url}`);
+    console.log(`✅ [${data.status}] score=${data.risk_score} (${tag}) ip=${ip ?? "?"} → ${url}`);
 
     updateBadge(tabId, data.status);
     maybeNotify(data);

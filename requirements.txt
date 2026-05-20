@@ -5,3 +5,8 @@ PyMySQL==1.1.2
 pydantic==2.13.3
 pydantic-settings==2.14.0
 python-dotenv==1.2.2
+
+# scoring pipeline 用(URL 爬蟲、HTML 解析、WHOIS 網域年齡查詢)
+requests>=2.32
+beautifulsoup4>=4.12
+python-whois>=0.9

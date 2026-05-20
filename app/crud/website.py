@@ -1,24 +1,34 @@
-from sqlalchemy.orm import Session
+import csv
+import sys
+import time
+from pathlib import Path
+
 from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.core.database import engine
+
 
 def update_website_status_and_score(db: Session, site_id: int, status: str, score: float):
     """
-    管理員裁決後，更新特定網站的狀態與風險值。
-    - 申訴通過 (Approved)：退回 'Safe'，分數歸零。
-    - 申訴駁回 (Rejected)：維持 'Blocked' 等狀態。
+    管理員裁決後,更新特定網站的狀態與風險值。
+    - 申訴通過 (Approved):退回 'Safe',分數歸零。
+    - 申訴駁回 (Rejected):維持 'Blocked' 等狀態。
     """
     query = text("""
-        UPDATE WEBSITE 
+        UPDATE WEBSITE
         SET Status = :status, Risk_Score = :score
         WHERE Site_ID = :site_id
     """)
     db.execute(query, {"site_id": site_id, "status": status, "score": score})
+
+
 def get_ip_block_stats(db: Session, ip_address: str) -> dict:
     """
     計算特定 IP_Address 下已封鎖網站的比例
     """
     query = text("""
-        SELECT 
+        SELECT
             COUNT(*) as total_sites,
             SUM(CASE WHEN Status = 'Blocked' THEN 1 ELSE 0 END) as blocked_sites
         FROM WEBSITE
@@ -26,6 +36,7 @@ def get_ip_block_stats(db: Session, ip_address: str) -> dict:
     """)
     row = db.execute(query, {"ip_address": ip_address}).mappings().first()
     return dict(row) if row else {"total_sites": 0, "blocked_sites": 0}
+
 
 def batch_increase_risk_score_by_ip(db: Session, ip_address: str, score_increment: float):
     """
@@ -40,9 +51,10 @@ def batch_increase_risk_score_by_ip(db: Session, ip_address: str, score_incremen
     db.execute(query, {"ip_address": ip_address, "increment": score_increment})
     db.commit()
 
+
 def force_manual_review(db: Session, site_id: int):
     """
-    暫停自動封鎖功能，強制轉入人工審核流程 (將狀態設為 Warning)
+    暫停自動封鎖功能,強制轉入人工審核流程 (將狀態設為 Warning)
     """
     query = text("""
         UPDATE WEBSITE
@@ -51,95 +63,48 @@ def force_manual_review(db: Session, site_id: int):
     """)
     db.execute(query, {"site_id": site_id})
     db.commit()
-from __future__ import annotations
 
-import csv
-import sys
-import time
-from pathlib import Path
 
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+def create_website(
+    db: Session,
+    url: str,
+    ip: str | None,
+    status: str,
+    risk_score: float,
+) -> int:
+    """新增一筆 WEBSITE,回傳 Site_ID。
 
-from app.core.database import engine
-
-def create_website_entry(db: Session, url: str, ip: str, score: float, status: str):
-    sql = text("""
-        INSERT INTO WEBSITE (URL, IP_Address, Status, Risk_Score) 
-        VALUES (:url, :ip, :status, :score)
-    """)
-    db.execute(sql, {
-        "url": url, 
-        "ip": ip,      
-        "status": status, 
-        "score": score
-    })
+    呼叫端要保證 URL 不存在(否則 UNIQUE 衝突會炸)。
+    `ip` 可以是 None,DB 欄位會存 NULL。
+    """
+    result = db.execute(
+        text("""
+            INSERT INTO WEBSITE (URL, IP_Address, Status, Risk_Score)
+            VALUES (:url, :ip, :status, :score)
+        """),
+        {"url": url, "ip": ip, "status": status, "score": risk_score},
+    )
     db.commit()
+    return result.lastrowid
+
 
 def update_website_score(db: Session, site_id: int, score: float, status: str):
     sql = text("""
-        UPDATE website 
-        SET Risk_Score = :score, Status = :status 
+        UPDATE website
+        SET Risk_Score = :score, Status = :status
         WHERE Site_ID = :site_id
     """)
     db.execute(sql, {"score": score, "status": status, "site_id": site_id})
     db.commit()
 
+
 def get_website_by_url(db: Session, url: str):
     sql = text("SELECT Site_ID, URL, IP_Address, Status, Risk_Score FROM website WHERE URL = :url")
     return db.execute(sql, {"url": url}).mappings().first()
 
-def upsert_website_by_url(db: Session, url: str) -> int:
-    """確保 URL 在 WEBSITE 表中存在,回傳對應的 Site_ID。
-
-    已存在 → 直接回傳既有 Site_ID(不更新任何欄位)。
-    不存在 → 以 Risk_Score=0 新增一筆,其餘欄位走 schema 預設(Status='Safe', IP_Address=NULL)。
-    """
-    existing = db.execute(
-        text("SELECT Site_ID FROM WEBSITE WHERE URL = :url"),
-        {"url": url},
-    ).first()
-    if existing:
-        return existing[0]
-
-    result = db.execute(
-        text("INSERT INTO WEBSITE (URL, Risk_Score) VALUES (:url, 0)"),
-        {"url": url},
-    )
-    db.commit()
-    return result.lastrowid
-
 
 # ------------------------------------------------------------------
-# /report API 用的查詢與新增(由 services/report_service.py 編排)
-# ------------------------------------------------------------------
-
-def get_website_by_url(db: Session, url: str) -> dict | None:
-    """依 URL 查 WEBSITE,有的話回傳 dict,沒有回 None。"""
-    row = db.execute(
-        text("SELECT Site_ID, URL, Status, Risk_Score FROM WEBSITE WHERE URL = :url"),
-        {"url": url},
-    ).mappings().first()
-    return dict(row) if row else None
-
-
-def create_website(db: Session, url: str, status: str, risk_score: float) -> int:
-    """新增一筆 WEBSITE,回傳 Site_ID。
-    呼叫端要保證 URL 不存在(否則 UNIQUE 衝突會炸)。
-    """
-    result = db.execute(
-        text(
-            "INSERT INTO WEBSITE (URL, Status, Risk_Score) "
-            "VALUES (:url, :status, :score)"
-        ),
-        {"url": url, "status": status, "score": risk_score},
-    )
-    db.commit()
-    return result.lastrowid
-
-
-# ------------------------------------------------------------------
-# NPA_WEBURL.csv 匯入(警政署詐騙網站清單,一次性 import
+# NPA_WEBURL.csv 匯入(警政署詐騙網站清單,一次性 bulk import)
 # ------------------------------------------------------------------
 
 _NPA_BATCH_SIZE = 1000
@@ -201,7 +166,7 @@ def import_npa_websites_from_csv(csv_path: str | Path) -> tuple[int, int]:
 
 
 if __name__ == "__main__":
-    # 從專案根直接執行:python -m app.crud.website
+    # 從專案根直接執行:uv run python -m app.crud.website
     project_root = Path(__file__).resolve().parents[2]
     default_csv = project_root / "NPA_WEBURL.csv"
 
@@ -217,5 +182,3 @@ if __name__ == "__main__":
         f"\n✅ 完成,耗時 {elapsed:.1f}s\n"
         f"   新增 {inserted:,} 筆 / 略過 {skipped:,} 筆(URL 已存在)"
     )
-
-

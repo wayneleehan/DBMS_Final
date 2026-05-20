@@ -20,7 +20,7 @@ from app.api import reports, visits
 app = FastAPI(title="詐騙聯防預警系統 API")
 
 # app.include_router(warnings.router)
-# app.include_router(appeals.router)
+app.include_router(appeals.router)
 app.include_router(admin_review.router) #  註冊進主程式
 
 # ... 保持原來的測試路由與根目錄 ...

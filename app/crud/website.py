@@ -205,16 +205,16 @@ if __name__ == "__main__":
     project_root = Path(__file__).resolve().parents[2]
     default_csv = project_root / "NPA_WEBURL.csv"
 
-    print(f"📄 讀取 {default_csv.name}")
+    print(f" 讀取 {default_csv.name}")
     t0 = time.time()
     try:
         inserted, skipped = import_npa_websites_from_csv(default_csv)
     except FileNotFoundError as e:
-        sys.exit(f"❌ {e}")
+        sys.exit(f" {e}")
 
     elapsed = time.time() - t0
     print(
-        f"\n✅ 完成,耗時 {elapsed:.1f}s\n"
+        f"\n 完成,耗時 {elapsed:.1f}s\n"
         f"   新增 {inserted:,} 筆 / 略過 {skipped:,} 筆(URL 已存在)"
     )
 

@@ -6,7 +6,6 @@ def process_appeal_submission(db: Session, appeal_data: AppealCreateRequest) -> 
     """
     處理使用者提交申訴或再申訴的邏輯。
     """
-    # 💡 在這裡可以擴充商業邏輯，例如：
     # 1. 檢查 Report_ID 是否真的存在 (防呆)
     # 2. 如果 parent_appeal_id 有值，確認上一筆申訴狀態是否為 'Rejected'
     

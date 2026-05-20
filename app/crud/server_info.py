@@ -1,8 +1,6 @@
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from sqlalchemy import text
-from sqlalchemy.orm import Session
 
 def get_server_info_by_ip(db: Session, ip: str):
     sql = text("SELECT IP_Address, Country, ISP, ASN FROM server_info WHERE IP_Address = :ip")

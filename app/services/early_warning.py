@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.crud import report, alert_log, website
+from app.crud import report, alert_logs, website
 
 def monitor_cib_attack(db: Session, site_id: int) -> dict:
     """
@@ -12,7 +12,7 @@ def monitor_cib_attack(db: Session, site_id: int) -> dict:
     if distinct_users >= 3:
         # 若多個 Users.User_ID 在極短時間內對同一網址提交檢舉，自動寫入 Alert_Logs [cite: 7]
         alert_desc = f"系統偵測到短時間內湧入大量檢舉 (Site_ID: {site_id})，疑似協同造假攻擊。"
-        alert_log.create_alert_log(db, alert_type="CIB_Attack", target_id=f"Site_ID: {site_id}", description=alert_desc)
+        alert_logs.create_alert_log(db, alert_type="CIB_Attack", target_id=f"Site_ID: {site_id}", description=alert_desc)
         
         # 暫停該網址的自動封鎖功能，強制轉入人工審核流程 [cite: 8]
         website.force_manual_review(db, site_id)
@@ -38,7 +38,7 @@ def monitor_cluster_warning(db: Session, ip_address: str) -> dict:
     # 若該 IP 下已有超過 50% 的網站被判定為詐騙，觸發預警 [cite: 13]
     if block_ratio >= 0.5:
         alert_desc = f"該 IP ({ip_address}) 網段下已有 {block_ratio*100}% 的網站被標記為詐騙，觸發機房集群預警。"
-        alert_log.create_alert_log(db, alert_type="Cluster_Warning", target_id=f"IP: {ip_address}", description=alert_desc)
+        alert_logs.create_alert_log(db, alert_type="Cluster_Warning", target_id=f"IP: {ip_address}", description=alert_desc)
         
         # 批量更新該 IP 下所有「正常」網址的 Risk_Score [cite: 14]
         # 假設增加 30 分風險值

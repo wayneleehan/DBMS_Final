@@ -31,12 +31,17 @@ DBMS 期末專案。當使用者瀏覽新網站時，瀏覽器擴充套件會即
 完整 schema 請見 [`database/createDB.sql`](database/createDB.sql)。
 
 ### 目前 API 端點
-> ⚠️ 系統開發中，目前僅有測試端點，業務 API（給瀏覽器擴充套件呼叫的 `/check-url` 等）尚未實作。
 
 | Method | Path | 用途 |
 |---|---|---|
 | GET | `/` | 健康檢查 |
 | GET | `/test-db` | 測試 MySQL 連線、列出 `WEBSITE` 前 5 筆 |
+| POST | `/api/v1/visits` | 擴充功能回報瀏覽紀錄、回傳網站 status |
+| POST | `/api/v1/reports` | 使用者手動通報網址 |
+| POST | `/api/v1/warnings/cib` | 觸發 CIB(協同造假)監控 |
+| POST | `/api/v1/warnings/cluster` | 觸發機房集群預警監控 |
+| POST | `/api/v1/appeals/` | 使用者提交申訴 / 再申訴 |
+| POST | `/api/v1/admin/review` | 管理員裁決申訴案件 |
 
 服務啟動後可在 http://127.0.0.1:8000/docs 看自動產生的 Swagger UI。
 
@@ -48,6 +53,7 @@ DBMS 期末專案。當使用者瀏覽新網站時，瀏覽器擴充套件會即
 | Web 框架 | FastAPI 0.136 |
 | ORM / DB 驅動 | SQLAlchemy 2.0 + PyMySQL |
 | 資料驗證 | Pydantic 2 / pydantic-settings |
+| 評分管線輔助 | requests + beautifulsoup4(網頁爬蟲)、python-whois(網域年齡) |
 | 資料庫 | MySQL 8.x（本機 / AWS RDS） |
 | 套件管理 | uv |
 | 推薦 GUI | TablePlus |

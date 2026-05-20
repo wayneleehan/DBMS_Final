@@ -24,7 +24,7 @@ def process_admin_adjudication(db: Session, request: AdminReviewRequest) -> dict
         appeal.update_appeal_status(db, request.appeal_id, request.decision)
         ruling.create_ruling(db, request.admin_id, request.appeal_id, request.ruling_result)
 
-        # 3. 💡 正確引用 process_appeal_impact 方法處理分數修正
+        # 3. 
         # 傳入申訴人 ID 與裁決狀態 (request.decision 為 'Approved' 或 'Rejected')
         process_appeal_impact(db, target_user_id, request.decision)
 

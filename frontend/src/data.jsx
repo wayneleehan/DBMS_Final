@@ -1,5 +1,5 @@
 // Mock data for the antifraud system
-const MOCK = {
+export const MOCK = {
   user: {
     name: "陳治安",
     initials: "陳",
@@ -62,21 +62,36 @@ const MOCK = {
   ],
 };
 
-window.MOCK = MOCK;
-window.statusMeta = (s) => ({
-  safe:      { label: "安全",       cls: "safe" },
-  warn:      { label: "可疑",       cls: "warn" },
-  danger:    { label: "高風險",     cls: "danger" },
-  confirmed: { label: "已確認為詐騙", cls: "danger" },
-  info:      { label: "資訊",       cls: "info" },
-}[s] || { label: s, cls: "muted" });
+export function statusMeta(s) {
+  return (
+    {
+      safe: { label: "安全", cls: "safe" },
+      warn: { label: "可疑", cls: "warn" },
+      danger: { label: "高風險", cls: "danger" },
+      confirmed: { label: "已確認為詐騙", cls: "danger" },
+      info: { label: "資訊", cls: "info" },
+    }[s] || { label: s, cls: "muted" }
+  );
+}
 
-window.caseStatusMeta = (s) => ({
-  "待審核": { cls: "warn" },
-  "已通過": { cls: "safe" },
-  "已駁回": { cls: "muted" },
-  "審核中": { cls: "info" },
-  "申訴中": { cls: "info" },
-}[s] || { cls: "muted" });
+export function caseStatusMeta(s) {
+  return (
+    {
+      待審核: { cls: "warn" },
+      已通過: { cls: "safe" },
+      已駁回: { cls: "muted" },
+      審核中: { cls: "info" },
+      申訴中: { cls: "info" },
+    }[s] || { cls: "muted" }
+  );
+}
 
-window.riskColor = (r) => r >= 80 ? "#EF4444" : r >= 50 ? "#F59E0B" : r >= 20 ? "#3B82F6" : "#22C55E";
+export function riskColor(r) {
+  return r >= 80
+    ? "#EF4444"
+    : r >= 50
+    ? "#F59E0B"
+    : r >= 20
+    ? "#3B82F6"
+    : "#22C55E";
+}

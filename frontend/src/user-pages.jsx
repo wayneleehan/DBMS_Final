@@ -1,3 +1,12 @@
+import React from "react";
+
+import { MOCK, riskColor } from "./data.jsx";
+
+import {
+  I,
+  StatusBadge,
+  CaseBadge,
+} from "./components.jsx";
 // LOGIN PAGE — sketch-based: dark top band + centered card
 const DEMO_ACCOUNTS = {
   user: [
@@ -10,7 +19,7 @@ const DEMO_ACCOUNTS = {
 
 };
 
-function LoginPage({ onLogin }) {
+export function LoginPage({ onLogin }) {
   const [role, setRole] = React.useState("user");
   const [email, setEmail] = React.useState("zhian.chen@example.com");
   const [pwd, setPwd] = React.useState("demo1234");
@@ -38,7 +47,7 @@ function LoginPage({ onLogin }) {
     <div className="login-shell">
       <div className="login-header" style={{ height: "120px" }}>
         <div className="login-wordmark">
-          ANTIFRAUD<span className="dot"></span>
+            ANTIFRAUD<span className="dot"></span>
           <small></small>
         </div>
         <div className="login-notch"></div>
@@ -318,7 +327,7 @@ function ForgotPasswordModal({ onClose, defaultEmail }) {
 }
 
 // ===== USER: PROFILE =====
-function UserProfile() {
+export function UserProfile() {
   const u = MOCK.user;
   return (
     <div className="content">
@@ -392,7 +401,7 @@ function UserProfile() {
 }
 
 // ===== USER: REPORT (with tabs) =====
-function UserReport() {
+export function UserReport() {
   const [tab, setTab] = React.useState("report");
   const [submitted, setSubmitted] = React.useState(false);
 
@@ -594,7 +603,7 @@ function DropZone({ files, setFiles }) {
 }
 
 // ===== USER: WEBSITE OVERVIEW =====
-function WebsiteOverview() {
+export function WebsiteOverview() {
   const [filter, setFilter] = React.useState("all");
   const [q, setQ] = React.useState("");
   const filters = [
@@ -657,9 +666,9 @@ function WebsiteOverview() {
                 <td>
                   <div className="row" style={{ gap: 10 }}>
                     <div style={{ flex: 1, height: 6, background: "var(--bg-tint)", borderRadius: 20, overflow: "hidden" }}>
-                      <div style={{ width: w.risk + "%", height: "100%", background: window.riskColor(w.risk), borderRadius: 20 }}></div>
+                      <div style={{ width: w.risk + "%", height: "100%", background: riskColor(w.risk), borderRadius: 20 }}></div>
                     </div>
-                    <span className="num" style={{ fontSize: 13, fontWeight: 600, color: window.riskColor(w.risk), minWidth: 24 }}>{w.risk}</span>
+                    <span className="num" style={{ fontSize: 13, fontWeight: 600, color: riskColor(w.risk), minWidth: 24 }}>{w.risk}</span>
                   </div>
                 </td>
                 <td className="num">{w.reports.toLocaleString()}</td>
@@ -675,5 +684,3 @@ function WebsiteOverview() {
     </div>);
 
 }
-
-Object.assign(window, { LoginPage, UserProfile, UserReport, WebsiteOverview });

@@ -1,5 +1,16 @@
+import React from "react";
+
+import { MOCK } from "./data.jsx";
+
+import {
+  I,
+  Stat,
+  CaseBadge,
+  RiskRing,
+  StatusBadge,
+} from "./components.jsx";
 // ===== ADMIN: REVIEW PAGE =====
-function AdminReview({ onOpen }) {
+export function AdminReview({ onOpen }) {
   const [filter, setFilter] = React.useState("all");
   const filters = [
     { id: "all", label: "全部", count: MOCK.reviewQueue.length },
@@ -79,7 +90,7 @@ function AdminReview({ onOpen }) {
 }
 
 // ===== REVIEW DETAIL =====
-function ReviewDetail({ caseData, onBack }) {
+export function ReviewDetail({ caseData, onBack }) {
   const c = caseData;
   const [verdict, setVerdict] = React.useState(null);
   const [note, setNote] = React.useState("");
@@ -260,7 +271,7 @@ function VerdictButton({ id, current, onSelect, label, tone }) {
 }
 
 // ===== ADMIN: ALERT =====
-function AdminAlert() {
+export function AdminAlert() {
   const [sev, setSev] = React.useState("all");
   const sevFilters = [
     { id:"all", label:"全部", count: MOCK.alerts.length },
@@ -341,7 +352,7 @@ function SeverityTag({ sev }) {
 }
 
 // ===== ADMIN: PROFILE =====
-function AdminProfile() {
+export function AdminProfile() {
   const a = MOCK.admin;
   const history = [
     { time: "2026-05-13 10:42", url: "fastmart-deal.shop", type: "舉報", verdict: "warn", note: "新註冊網域，已標記觀察" },
@@ -411,5 +422,3 @@ function AdminProfile() {
     </div>
   );
 }
-
-Object.assign(window, { AdminReview, ReviewDetail, AdminAlert, AdminProfile });

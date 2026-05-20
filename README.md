@@ -114,6 +114,7 @@ copy .env.example .env     # Windows
 ## 5. 啟動服務
 
 ```bash
+# 方案 B
 uv run uvicorn app.main:app --reload
 ```
 

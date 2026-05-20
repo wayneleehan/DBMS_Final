@@ -34,7 +34,7 @@ def check_visit(db: Session, url: str, visited_at: datetime | None) -> dict:
         is_new = True
 
     tag = "new" if is_new else "existing"
-    print(f"📥 Visit ({tag}): {url} → {status}/{risk_score} @ {timestamp.isoformat()} (site_id={site_id})")
+    print(f" Visit ({tag}): {url} → {status}/{risk_score} @ {timestamp.isoformat()} (site_id={site_id})")
     return {
         "url": url,
         "status": status,

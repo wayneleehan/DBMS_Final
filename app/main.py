@@ -17,6 +17,13 @@ def read_root():
 from app.core.database import get_db
 from app.api import reports, visits
 
+app = FastAPI(title="詐騙聯防預警系統 API")
+
+# app.include_router(warnings.router)
+# app.include_router(appeals.router)
+app.include_router(admin_review.router) #  註冊進主程式
+
+# ... 保持原來的測試路由與根目錄 ...
 app = FastAPI(title="防詐騙預警系統 API")
 
 # MVP: allow all origins so the Chrome extension can POST during local dev.

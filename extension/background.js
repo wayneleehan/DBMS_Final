@@ -47,12 +47,12 @@ async function checkVisit(tabId, url) {
 
     const data = await res.json();
     const tag = data.is_new ? "new" : "existing";
-    console.log(`✅ [${data.status}] score=${data.risk_score} (${tag}) ip=${ip ?? "?"} → ${url}`);
+    console.log(` [${data.status}] score=${data.risk_score} (${tag}) ip=${ip ?? "?"} → ${url}`);
 
     updateBadge(tabId, data.status);
     maybeNotify(data);
   } catch (err) {
-    console.error(`❌ Network error for ${url}:`, err);
+    console.error(` Network error for ${url}:`, err);
   }
 }
 
@@ -80,8 +80,8 @@ function maybeNotify({ url, status, risk_score }) {
   recentNotifications.set(url, now);
 
   const titleByStatus = {
-    Blocked: "🚫 已知詐騙網站",
-    Warning: "⚠️ 高風險網站警告",
+    Blocked: " 已知詐騙網站",
+    Warning: " 高風險網站警告",
   };
 
   chrome.notifications.create({

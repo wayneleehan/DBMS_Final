@@ -1,14 +1,53 @@
 // ===== ADMIN: REVIEW PAGE =====
 function AdminReview({ onOpen }) {
+  // filter:'all' / '待審核' / '申訴中' / '已通過' / '已駁回'
+  // 後端目前只有「待審核 / 申訴中」兩種有資料,其他兩個會 hardcode 0(等之後做歷史紀錄 API)
   const [filter, setFilter] = React.useState("all");
+  const [rows, setRows] = React.useState([]);
+  const [counts, setCounts] = React.useState({ pending: 0, appealing: 0 });
+  const [loading, setLoading] = React.useState(true);
+  const [err, setErr] = React.useState(null);
+
+  // 載入清單 + 計數;filter 改變要重抓清單
+  React.useEffect(() => {
+    setLoading(true);
+    setErr(null);
+    const statusParam = (filter === "all") ? null : filter;
+    Promise.all([
+      API.getReviewQueue(statusParam),
+      API.getReviewQueueCounts(),
+    ])
+      .then(([queue, c]) => { setRows(queue); setCounts(c); })
+      .catch((e) => setErr(e.message || "載入失敗"))
+      .finally(() => setLoading(false));
+  }, [filter]);
+
   const filters = [
-    { id: "all", label: "全部", count: MOCK.reviewQueue.length },
-    { id: "待審核", label: "待審核", count: MOCK.reviewQueue.filter(c => c.status === "待審核").length },
-    { id: "申訴中", label: "申訴中", count: MOCK.reviewQueue.filter(c => c.status === "申訴中").length },
+    { id: "all",    label: "全部",   count: counts.pending + counts.appealing },
+    { id: "待審核", label: "待審核", count: counts.pending },
+    { id: "申訴中", label: "申訴中", count: counts.appealing },
     { id: "已通過", label: "已通過", count: 0 },
     { id: "已駁回", label: "已駁回", count: 0 },
   ];
-  const rows = MOCK.reviewQueue.filter(c => filter === "all" || c.status === filter);
+
+  // 把後端 row 轉成 ReviewDetail 期待的 caseData 形狀
+  function rowToCase(r) {
+    return {
+      id: r.case_id,
+      raw_id: r.raw_id,
+      type: r.type,
+      cat: r.category || "—",
+      status: r.case_status,
+      url: r.url,
+      risk: Math.round(r.risk_score),
+      submitter: r.submitter_name,
+      submitter_id: r.submitter_id,
+      reputation: Math.round(r.submitter_reputation || 0),
+      time: r.submitted_at ? r.submitted_at.replace("T", " ").slice(0, 16) : "—",
+      reason: r.reason,
+      website_status: r.website_status,
+    };
+  }
 
   return (
     <div className="content">
@@ -18,17 +57,17 @@ function AdminReview({ onOpen }) {
           <p className="page-sub">處理使用者提交的舉報與申訴案件</p>
         </div>
         <div className="row" style={{gap:8}}>
-          <span className="badge warn"><span className="dot"></span>{MOCK.reviewQueue.filter(c => c.status==="待審核").length} 件待審核</span>
-          <span className="badge info"><span className="dot"></span>{MOCK.reviewQueue.filter(c => c.status==="申訴中").length} 件申訴中</span>
+          <span className="badge warn"><span className="dot"></span>{counts.pending} 件待審核</span>
+          <span className="badge info"><span className="dot"></span>{counts.appealing} 件申訴中</span>
         </div>
       </div>
 
-      {/* mini metrics row */}
+      {/* mini metrics row — 暫時 hardcode,等做歷史/統計 API */}
       <div className="grid cols-4" style={{marginBottom:16}}>
-        <Stat icon={I.clock} label="待審核" value="12" accent/>
-        <Stat icon={I.bolt} label="今日已處理" value="34"/>
-        <Stat icon={I.check} label="今週通過率" value="64" suffix="%"/>
-        <Stat icon={I.warn} label="協同造假警報" value="2"/>
+        <Stat icon={I.clock} label="待審核" value={counts.pending} accent/>
+        <Stat icon={I.bolt} label="申訴中" value={counts.appealing}/>
+        <Stat icon={I.check} label="今週通過率" value="—"/>
+        <Stat icon={I.warn} label="協同造假警報" value="—"/>
       </div>
 
       <div className="card" style={{marginBottom:16}}>
@@ -56,21 +95,28 @@ function AdminReview({ onOpen }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map(c => (
-              <tr key={c.id} style={{cursor:"pointer"}} onClick={() => onOpen(c)}>
-                <td className="mono" style={{fontSize:12,fontWeight:500}}>{c.id}</td>
-                <td className="url-cell">{c.url}<small>{c.cat}</small></td>
-                <td><CaseBadge status={c.status}/></td>
-                <td>
-                  <RiskRing value={c.risk} size={36}/>
-                </td>
-                <td>
-                  <div style={{fontSize:13}}>{c.submitter}</div>
-                  <div style={{fontSize:11,color:"var(--text-3)"}}>信譽 <span className="num">{c.reputation}</span></div>
-                </td>
-                <td className="num" style={{fontSize:12,color:"var(--text-3)"}}>{c.time}</td>
-              </tr>
-            ))}
+            {loading ? (
+              <tr><td colSpan={6} style={{textAlign:"center",padding:24,color:"var(--text-3)"}}>載入中…</td></tr>
+            ) : err ? (
+              <tr><td colSpan={6} style={{textAlign:"center",padding:24,color:"#B91C1C"}}>{err}</td></tr>
+            ) : rows.length === 0 ? (
+              <tr><td colSpan={6} style={{textAlign:"center",padding:24,color:"var(--text-3)"}}>目前佇列空空如也</td></tr>
+            ) : rows.map(r => {
+              const c = rowToCase(r);
+              return (
+                <tr key={c.id} style={{cursor:"pointer"}} onClick={() => onOpen(c)}>
+                  <td className="mono" style={{fontSize:12,fontWeight:500}}>{c.id}</td>
+                  <td className="url-cell">{c.url}<small>{c.cat}</small></td>
+                  <td><CaseBadge status={c.status}/></td>
+                  <td><RiskRing value={c.risk} size={36}/></td>
+                  <td>
+                    <div style={{fontSize:13}}>{c.submitter}</div>
+                    <div style={{fontSize:11,color:"var(--text-3)"}}>信譽 <span className="num">{c.reputation}</span></div>
+                  </td>
+                  <td className="num" style={{fontSize:12,color:"var(--text-3)"}}>{c.time}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -84,6 +130,55 @@ function ReviewDetail({ caseData, onBack }) {
   const [verdict, setVerdict] = React.useState(null);
   const [note, setNote] = React.useState("");
   const [done, setDone] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [submitErr, setSubmitErr] = React.useState(null);
+
+  // 兩種案件型別分別走不同 API:
+  //   申訴(type='申訴'):走 /admin/review,把 verdict 轉成 Approved/Rejected
+  //   舉報(type='舉報'):走 /admin/report-verdict,直接送 verdict
+  const isAppeal = c.type === "申訴";
+
+  // 申訴 case 的 verdict → decision 映射:
+  //   safe → Approved(申訴通過,撤回對網站的負面判定)
+  //   warn / danger / reject → Rejected(駁回申訴,維持原判定)
+  function verdictToDecision(v) {
+    return v === "safe" ? "Approved" : "Rejected";
+  }
+
+  async function handleSubmit() {
+    setSubmitErr(null);
+    if (!verdict) return;
+    if (!note.trim()) {
+      setSubmitErr("請填寫管理員備註(內部紀錄用)");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (isAppeal) {
+        await API.submitReview({
+          appeal_id: c.raw_id,
+          decision: verdictToDecision(verdict),
+          ruling_result: note.trim(),
+          is_unreasonable: verdict !== "safe",
+        });
+      } else {
+        // 舉報 case:verdict (safe/warn/danger) 直接送
+        // 'reject' 對舉報沒意義,前端 UI 只在 isAppeal 時顯示該按鈕,理論上不會走到
+        await API.submitReportVerdict({
+          report_id: c.raw_id,
+          verdict: verdict,
+          note: note.trim(),
+        });
+      }
+      setDone(true);
+    } catch (e) {
+      if (e.status === 401) setSubmitErr("登入狀態已失效,請重新登入");
+      else if (e.status === 403) setSubmitErr("僅限管理員操作");
+      else setSubmitErr(e.message || "送出失敗,請稍後再試");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   if (done) {
     return (
@@ -209,23 +304,39 @@ function ReviewDetail({ caseData, onBack }) {
         <div className="card" style={{position:"sticky",top:80}}>
           <div className="card-h"><h3>審核決定</h3></div>
           <div className="card-body">
+
             <div className="section-title">判定</div>
             <div style={{display:"grid",gap:8,marginBottom:18}}>
-              <VerdictButton id="safe" current={verdict} onSelect={setVerdict} label="判定為安全" tone="safe"/>
+              <VerdictButton id="safe" current={verdict} onSelect={setVerdict} label={isAppeal ? "申訴通過(撤回判定)" : "判定為安全"} tone="safe"/>
               <VerdictButton id="warn" current={verdict} onSelect={setVerdict} label="判定為可疑" tone="warn"/>
               <VerdictButton id="danger" current={verdict} onSelect={setVerdict} label="判定為高風險" tone="danger"/>
-              {c.type === "申訴" && <VerdictButton id="reject" current={verdict} onSelect={setVerdict} label="駁回申訴" tone="muted"/>}
+              {isAppeal && <VerdictButton id="reject" current={verdict} onSelect={setVerdict} label="駁回申訴(維持原判)" tone="muted"/>}
             </div>
 
             <div className="field" style={{marginBottom:0}}>
-              <label>管理員備註</label>
+              <label>管理員備註 <span style={{color:"var(--danger)"}}>*</span></label>
               <textarea className="textarea" rows="4" value={note} onChange={e => setNote(e.target.value)}
-                placeholder="說明判定理由，內部紀錄用…"></textarea>
+                placeholder="說明判定理由,內部紀錄用…"></textarea>
             </div>
+
+            {submitErr && (
+              <div style={{
+                marginTop:12,padding:"10px 12px",borderRadius:8,
+                background:"var(--danger-bg)",border:"1px solid #FECACA",
+                color:"#B91C1C",fontSize:12.5
+              }}>{submitErr}</div>
+            )}
           </div>
           <div className="card-foot">
-            <button className="btn ghost">取消</button>
-            <button className="btn primary" disabled={!verdict} style={{opacity:verdict?1:.5}} onClick={() => setDone(true)}>送出審核結果</button>
+            <button className="btn ghost" disabled={submitting} onClick={onBack}>取消</button>
+            <button
+              className="btn primary"
+              disabled={!verdict || submitting}
+              style={{opacity:(verdict && !submitting)?1:.5}}
+              onClick={handleSubmit}
+            >
+              {submitting ? "送出中…" : "送出審核結果"}
+            </button>
           </div>
         </div>
       </div>
@@ -341,8 +452,17 @@ function SeverityTag({ sev }) {
 }
 
 // ===== ADMIN: PROFILE =====
-function AdminProfile() {
-  const a = MOCK.admin;
+function AdminProfile({ user }) {
+  // user 是後端回的 UserInfo;admin 版有 admin_role 但沒 reliability_score。
+  // 其他顯示用欄位(stats / history)還沒對應 API,先用 MOCK 補。
+  const a = {
+    name: user?.name || "—",
+    initials: user?.name ? user.name[0] : "?",
+    email: user?.email || "",
+    role: user?.admin_role || MOCK.admin.role,
+    joined: user?.created_at ? user.created_at.slice(0, 10) : "—",
+    stats: MOCK.admin.stats,  // TODO: 待後端管理員統計 API 接上
+  };
   const history = [
     { time: "2026-05-13 10:42", url: "fastmart-deal.shop", type: "舉報", verdict: "warn", note: "新註冊網域，已標記觀察" },
     { time: "2026-05-13 09:30", url: "line-pay-rewards.app", type: "舉報", verdict: "warn", note: "" },
@@ -372,7 +492,7 @@ function AdminProfile() {
               </div>
               <div className="row" style={{gap:32,alignItems:"flex-start"}}>
                 <div><div style={{fontSize:11,color:"var(--text-3)",marginBottom:6}}>權限角色</div><span className="badge solid-orange"><span className="dot"></span>{a.role}</span></div>
-                <div><div style={{fontSize:11,color:"var(--text-3)",marginBottom:6}}>到職日期</div><div className="num" style={{fontSize:13,lineHeight:"22px"}}>2024-03-08</div></div>
+                <div><div style={{fontSize:11,color:"var(--text-3)",marginBottom:6}}>到職日期</div><div className="num" style={{fontSize:13,lineHeight:"22px"}}>{a.joined}</div></div>
                 <div><div style={{fontSize:11,color:"var(--text-3)",marginBottom:6}}>當前狀態</div><StatusBadge status="safe"/></div>
               </div>
             </div>

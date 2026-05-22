@@ -10,3 +10,7 @@ python-dotenv==1.2.2
 requests>=2.32
 beautifulsoup4>=4.12
 python-whois>=0.9
+
+# Auth(密碼 hash + cookie session 簽章)
+bcrypt>=5.0
+itsdangerous>=2.2

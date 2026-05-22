@@ -341,8 +341,17 @@ function SeverityTag({ sev }) {
 }
 
 // ===== ADMIN: PROFILE =====
-function AdminProfile() {
-  const a = MOCK.admin;
+function AdminProfile({ user }) {
+  // user 是後端回的 UserInfo;admin 版有 admin_role 但沒 reliability_score。
+  // 其他顯示用欄位(stats / history)還沒對應 API,先用 MOCK 補。
+  const a = {
+    name: user?.name || "—",
+    initials: user?.name ? user.name[0] : "?",
+    email: user?.email || "",
+    role: user?.admin_role || MOCK.admin.role,
+    joined: user?.created_at ? user.created_at.slice(0, 10) : "—",
+    stats: MOCK.admin.stats,  // TODO: 待後端管理員統計 API 接上
+  };
   const history = [
     { time: "2026-05-13 10:42", url: "fastmart-deal.shop", type: "舉報", verdict: "warn", note: "新註冊網域，已標記觀察" },
     { time: "2026-05-13 09:30", url: "line-pay-rewards.app", type: "舉報", verdict: "warn", note: "" },
@@ -372,7 +381,7 @@ function AdminProfile() {
               </div>
               <div className="row" style={{gap:32,alignItems:"flex-start"}}>
                 <div><div style={{fontSize:11,color:"var(--text-3)",marginBottom:6}}>權限角色</div><span className="badge solid-orange"><span className="dot"></span>{a.role}</span></div>
-                <div><div style={{fontSize:11,color:"var(--text-3)",marginBottom:6}}>到職日期</div><div className="num" style={{fontSize:13,lineHeight:"22px"}}>2024-03-08</div></div>
+                <div><div style={{fontSize:11,color:"var(--text-3)",marginBottom:6}}>到職日期</div><div className="num" style={{fontSize:13,lineHeight:"22px"}}>{a.joined}</div></div>
                 <div><div style={{fontSize:11,color:"var(--text-3)",marginBottom:6}}>當前狀態</div><StatusBadge status="safe"/></div>
               </div>
             </div>

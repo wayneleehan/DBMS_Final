@@ -76,7 +76,7 @@ function Topbar({ crumbs }) {
 }
 
 // Sidebar
-function Sidebar({ role, page, onNav, onLogout }) {
+function Sidebar({ role, user, page, onNav, onLogout }) {
   const userItems = [
     { id: "overview",label: "總覽", icon: I.list },
     { id: "report",  label: "通報",     icon: I.flag },
@@ -88,7 +88,14 @@ function Sidebar({ role, page, onNav, onLogout }) {
     { id: "aprofile",label: "個人", icon: I.user },
   ];
   const items = role === "admin" ? adminItems : userItems;
-  const me = role === "admin" ? MOCK.admin : MOCK.user;
+
+  // 從後端 UserInfo 衍生側欄需要的欄位;沒登入(理論上不會走到 Sidebar)用空字串
+  const me = {
+    initials: user?.name ? user.name[0] : "?",
+    name: user?.name || "—",
+    role: user?.admin_role || "",
+    reputationLevel: reputationLevel(user?.reliability_score ?? 0),
+  };
 
   return (
     <aside className="sidebar">

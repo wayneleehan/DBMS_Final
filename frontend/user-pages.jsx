@@ -1,37 +1,30 @@
-// LOGIN PAGE — sketch-based: dark top band + centered card
-const DEMO_ACCOUNTS = {
-  user: [
-  { email: "zhian.chen@example.com", password: "demo1234" },
-  { email: "test@user.com", password: "demo1234" }],
-
-  admin: [
-  { email: "lihong.wang@example.com", password: "admin1234" },
-  { email: "admin@antifraud.gov", password: "admin1234" }]
-
-};
-
+// LOGIN PAGE — 後端 cookie session 認證
 function LoginPage({ onLogin }) {
   const [role, setRole] = React.useState("user");
-  const [email, setEmail] = React.useState("zhian.chen@example.com");
-  const [pwd, setPwd] = React.useState("demo1234");
+  const [email, setEmail] = React.useState("");
+  const [pwd, setPwd] = React.useState("");
   const [remember, setRemember] = React.useState(true);
   const [err, setErr] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
   const [modal, setModal] = React.useState(null); // "register" | "forgot" | null
 
-  React.useEffect(() => {
-    setEmail(role === "admin" ? "lihong.wang@example.com" : "zhian.chen@example.com");
-    setPwd(role === "admin" ? "admin1234" : "demo1234");
-    setErr(null);
-  }, [role]);
+  React.useEffect(() => { setErr(null); }, [role]);
 
-  function tryLogin() {
+  async function tryLogin() {
     setErr(null);
-    const match = DEMO_ACCOUNTS[role].find((a) => a.email.toLowerCase() === email.trim().toLowerCase() && a.password === pwd);
-    if (!match) {
-      setErr("帳號或密碼錯誤，請確認後重新輸入");
+    if (!email.trim() || !pwd) {
+      setErr("請輸入 Email 與密碼");
       return;
     }
-    onLogin(role);
+    setLoading(true);
+    try {
+      const { user } = await API.login(role, email.trim(), pwd);
+      onLogin(user);  // 成功:把後端回的 UserInfo 交給 App 設 state
+    } catch (e) {
+      setErr(e.message || "登入失敗");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -85,8 +78,9 @@ function LoginPage({ onLogin }) {
             <label><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> 記住我</label>
           </div>
 
-          <button className="btn primary block" onClick={tryLogin} style={{ justifyContent: "center", padding: "10px 16px", fontSize: 14 }}>
-            登入
+          <button className="btn primary block" onClick={tryLogin} disabled={loading}
+            style={{ justifyContent: "center", padding: "10px 16px", fontSize: 14, opacity: loading ? 0.7 : 1 }}>
+            {loading ? "登入中…" : "登入"}
           </button>
 
           <div className="login-foot" style={{ marginTop: 20 }}>
@@ -100,7 +94,13 @@ function LoginPage({ onLogin }) {
 
       <div className="login-foot-bar">v3.2.0 · © 2026 AntiFraud Initiative</div>
 
-      {modal === "register" && <RegisterModal onClose={() => setModal(null)} onDone={() => { setModal(null); setErr(null); }} />}
+      {modal === "register" && (
+        <RegisterModal
+          onClose={() => setModal(null)}
+          onDone={() => { setModal(null); setErr(null); }}
+          onRegistered={(user) => onLogin(user)}
+        />
+      )}
       {modal === "forgot" && <ForgotPasswordModal onClose={() => setModal(null)} defaultEmail={email} />}
     </div>);
 
@@ -131,13 +131,14 @@ function Modal({ title, subtitle, stamp, onClose, children, footer }) {
     </div>);
 }
 
-function RegisterModal({ onClose, onDone }) {
+function RegisterModal({ onClose, onDone, onRegistered }) {
   const [step, setStep] = React.useState("form"); // form | done
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [pwd, setPwd] = React.useState("");
   const [pwd2, setPwd2] = React.useState("");
   const [err, setErr] = React.useState({});
+  const [submitting, setSubmitting] = React.useState(false);
 
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const pwdScore = (() => {
@@ -151,20 +152,33 @@ function RegisterModal({ onClose, onDone }) {
   const pwdLabels = ["太弱", "普通", "良好", "強"];
   const pwdColors = ["var(--danger)", "var(--warn)", "var(--info)", "var(--safe)"];
 
-  function submit() {
+  async function submit() {
     const e = {};
     if (!name.trim()) e.name = "請輸入顯示名稱";
     if (!EMAIL_RE.test(email.trim())) e.email = "Email 格式不正確";
     if (pwd.length < 8) e.pwd = "密碼至少 8 個字元";
     if (pwd !== pwd2) e.pwd2 = "兩次輸入的密碼不一致";
     setErr(e);
-    if (Object.keys(e).length === 0) setStep("done");
+    if (Object.keys(e).length !== 0) return;
+
+    setSubmitting(true);
+    try {
+      const { user } = await API.register(name.trim(), email.trim(), pwd);
+      // 後端註冊成功會自動建立 session,直接讓 App 進入登入狀態
+      if (onRegistered) onRegistered(user);
+      setStep("done");
+    } catch (ex) {
+      // 後端可能回 409(Email 已被註冊)、400(密碼太短)等
+      setErr({ submit: ex.message || "註冊失敗,請稍後再試" });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (step === "done") {
     return (
-      <Modal title="註冊申請已送出" subtitle="請至 Email 完成驗證後即可登入" stamp="REG · ACK-2026-0517" onClose={onDone}
-        footer={<button className="btn primary" onClick={onDone} style={{ padding: "10px 18px" }}>知道了</button>}>
+      <Modal title="帳號建立成功" subtitle="您已自動登入,可開始使用" stamp="REG · ACK" onClose={onDone}
+        footer={<button className="btn primary" onClick={onDone} style={{ padding: "10px 18px" }}>進入系統</button>}>
         <div style={{
           padding: "20px", borderRadius: 10, background: "var(--orange-light)",
           border: "1px solid var(--orange-soft)", display: "flex", gap: 14, alignItems: "flex-start"
@@ -174,14 +188,14 @@ function RegisterModal({ onClose, onDone }) {
             display: "grid", placeItems: "center", color: "var(--orange)", flexShrink: 0
           }}>{I.check}</div>
           <div style={{ fontSize: 13, lineHeight: 1.65, color: "var(--text-2)" }}>
-            驗證信已寄至 <span className="mono" style={{ color: "var(--text)", fontWeight: 500 }}>{email}</span>
+            歡迎,<span className="mono" style={{ color: "var(--text)", fontWeight: 500 }}>{email}</span>
             <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-3)" }}>
-              驗證連結 24 小時內有效。若未收到，請至垃圾信件夾查看。
+              關閉此視窗後將進入個人頁面。
             </div>
           </div>
         </div>
         <ul style={{ margin: "16px 0 4px", padding: "0 0 0 18px", fontSize: 12.5, color: "var(--text-3)", lineHeight: 1.8 }}>
-          <li>新帳號預設信譽積分為 <strong style={{ color: "var(--text-2)" }}>500</strong></li>
+          <li>新帳號預設信譽積分為 <strong style={{ color: "var(--text-2)" }}>100</strong></li>
           <li>首次通報前，建議先閱讀社群準則</li>
           <li>連續駁回率過高將觸發人工審核</li>
         </ul>
@@ -192,9 +206,23 @@ function RegisterModal({ onClose, onDone }) {
     <Modal title="建立帳號" subtitle="加入 AntiFraud · 一同回報可疑網站，建立更安全的網路環境" stamp="REG · NEW USER" onClose={onClose}
       footer={
         <React.Fragment>
-          <button className="btn ghost" onClick={onClose}>取消</button>
-          <button className="btn primary" onClick={submit} style={{ padding: "10px 18px" }}>建立帳號</button>
+          <button className="btn ghost" onClick={onClose} disabled={submitting}>取消</button>
+          <button className="btn primary" onClick={submit} disabled={submitting}
+            style={{ padding: "10px 18px", opacity: submitting ? 0.7 : 1 }}>
+            {submitting ? "建立中…" : "建立帳號"}
+          </button>
         </React.Fragment>}>
+
+      {err.submit && (
+        <div style={{
+          padding: "10px 12px", borderRadius: 8,
+          background: "var(--danger-bg)", border: "1px solid #FECACA",
+          color: "#B91C1C", fontSize: 12.5, marginBottom: 12,
+          display: "flex", alignItems: "center", gap: 8
+        }}>
+          {I.warn}<span>{err.submit}</span>
+        </div>
+      )}
 
       <div className="field">
         <label>顯示名稱 <span style={{ color: "var(--danger)" }}>*</span></label>
@@ -318,8 +346,30 @@ function ForgotPasswordModal({ onClose, defaultEmail }) {
 }
 
 // ===== USER: PROFILE =====
-function UserProfile() {
-  const u = MOCK.user;
+function UserProfile({ user }) {
+  // user 是後端 /auth/login 或 /auth/me 回的 UserInfo:
+  //   { id, role, email, name, reliability_score, admin_role, created_at }
+
+  const [stats, setStats] = React.useState({ total: 0, approved: 0, rejected: 0, appeals: 0 });
+  const [records, setRecords] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    Promise.all([API.getMyStats(), API.getMyReports(6)])
+      .then(([s, r]) => { setStats(s); setRecords(r); })
+      .catch((e) => console.error("Failed to load profile data:", e))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const u = {
+    name: user?.name || "—",
+    initials: user?.name ? user.name[0] : "?",
+    email: user?.email || "",
+    joined: user?.created_at ? user.created_at.slice(0, 10) : "—",
+    reputation: Math.round(user?.reliability_score ?? 0),
+    reputationLevel: reputationLevel(user?.reliability_score ?? 0),
+    stats,
+  };
   return (
     <div className="content">
       <div className="page-header">
@@ -357,7 +407,7 @@ function UserProfile() {
       {/* Records */}
       <div className="card">
         <div className="card-h">
-          <div><h3>通報紀錄</h3><div className="sub">最近 6 筆 · 共 {u.stats.total} 筆</div></div>
+          <div><h3>通報紀錄</h3><div className="sub">最近 {records.length} 筆 · 共 {u.stats.total} 筆</div></div>
           <div className="row">
             <button className="btn ghost sm">查看全部</button>
           </div>
@@ -374,16 +424,25 @@ function UserProfile() {
             </tr>
           </thead>
           <tbody>
-            {MOCK.records.map((r) =>
-            <tr key={r.id}>
-                <td className="mono" style={{ fontSize: 12 }}>{r.id}</td>
-                <td className="url-cell">{r.url}</td>
-                <td>{r.type === "舉報" ? <span className="badge muted">{r.type}</span> : <span className="badge info"><span className="dot"></span>{r.type}</span>}</td>
-                <td><CaseBadge status={r.status} /></td>
-                <td>{r.verdict ? <StatusBadge status={r.verdict} /> : <span style={{ color: "var(--text-4)" }}>—</span>}</td>
-                <td className="num" style={{ fontSize: 12, color: "var(--text-3)" }}>{r.time}</td>
-              </tr>
-            )}
+            {loading ? (
+              <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-3)", padding: 24 }}>載入中…</td></tr>
+            ) : records.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-3)", padding: 24 }}>尚無通報紀錄</td></tr>
+            ) : records.map((r) => {
+              const display = statusToCaseDisplay(r.status);
+              return (
+                <tr key={r.report_id}>
+                  <td className="mono" style={{ fontSize: 12 }}>R-{String(r.report_id).padStart(6, "0")}</td>
+                  <td className="url-cell">{r.url}</td>
+                  <td><span className="badge muted">舉報</span></td>
+                  <td><CaseBadge status={display.caseStatus} /></td>
+                  <td>{display.verdict ? <StatusBadge status={display.verdict} /> : <span style={{ color: "var(--text-4)" }}>—</span>}</td>
+                  <td className="num" style={{ fontSize: 12, color: "var(--text-3)" }}>
+                    {r.timestamp ? r.timestamp.replace("T", " ").slice(0, 16) : "—"}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -395,6 +454,7 @@ function UserProfile() {
 function UserReport() {
   const [tab, setTab] = React.useState("report");
   const [submitted, setSubmitted] = React.useState(false);
+  const [result, setResult] = React.useState(null);  // 後端 /reports 回的 { url, status, risk_score, is_new }
 
   return (
     <div className="content">
@@ -406,21 +466,26 @@ function UserReport() {
       </div>
 
       <div className="tabs">
-        <button className={"tab" + (tab === "report" ? " active" : "")} onClick={() => {setTab("report");setSubmitted(false);}}>
+        <button className={"tab" + (tab === "report" ? " active" : "")} onClick={() => {setTab("report");setSubmitted(false);setResult(null);}}>
           舉報 <span className="tab-badge">未審核</span>
         </button>
-        <button className={"tab" + (tab === "appeal" ? " active" : "")} onClick={() => {setTab("appeal");setSubmitted(false);}}>
+        <button className={"tab" + (tab === "appeal" ? " active" : "")} onClick={() => {setTab("appeal");setSubmitted(false);setResult(null);}}>
           申訴 <span className="tab-badge">已有結果</span>
         </button>
       </div>
 
-      {submitted ? <SubmittedCard onBack={() => setSubmitted(false)} type={tab} /> :
-      tab === "report" ? <ReportForm onSubmit={() => setSubmitted(true)} /> : <AppealForm onSubmit={() => setSubmitted(true)} />}
+      {submitted ? (
+        <SubmittedCard onBack={() => {setSubmitted(false);setResult(null);}} type={tab} result={result} />
+      ) : tab === "report" ? (
+        <ReportForm onSubmit={(r) => {setResult(r);setSubmitted(true);}} />
+      ) : (
+        <AppealForm onSubmit={() => setSubmitted(true)} />
+      )}
     </div>);
 
 }
 
-function SubmittedCard({ onBack, type }) {
+function SubmittedCard({ onBack, type, result }) {
   return (
     <div className="card" style={{ maxWidth: 680, margin: "32px auto", textAlign: "center" }}>
       <div className="card-body" style={{ padding: "48px 24px" }}>
@@ -428,8 +493,46 @@ function SubmittedCard({ onBack, type }) {
           <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l5 5L20 6" /></svg>
         </div>
         <h2 style={{ margin: "0 0 8px", fontSize: 22 }}>{type === "report" ? "舉報" : "申訴"}已送出</h2>
-        <p style={{ color: "var(--text-3)", fontSize: 14, margin: "0 0 4px" }}>案件編號 <span className="mono">R-2026-0458</span></p>
-        <p style={{ color: "var(--text-3)", fontSize: 14, margin: "0 0 24px" }}>我們將在 24 小時內回覆審核結果</p>
+
+        {result ? (
+          <>
+            <p style={{ color: "var(--text-3)", fontSize: 13, margin: "0 0 16px", wordBreak: "break-all" }}>
+              <span className="mono">{result.url}</span>
+            </p>
+            <div style={{
+              display: "inline-flex", gap: 12, padding: "12px 18px",
+              background: "var(--bg-soft)", border: "1px solid var(--border)",
+              borderRadius: 10, marginBottom: 18, alignItems: "center"
+            }}>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontSize: 11, color: "var(--text-3)" }}>系統判定</div>
+                <div style={{ marginTop: 4 }}>
+                  <span className="badge" style={{ background: riskColor(result.risk_score) + "1A", color: riskColor(result.risk_score) }}>
+                    {result.status}
+                  </span>
+                </div>
+              </div>
+              <div style={{ width: 1, height: 28, background: "var(--border)" }}></div>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontSize: 11, color: "var(--text-3)" }}>風險分數</div>
+                <div className="num" style={{ fontSize: 18, fontWeight: 600, color: riskColor(result.risk_score) }}>
+                  {Math.round(result.risk_score)}
+                </div>
+              </div>
+              <div style={{ width: 1, height: 28, background: "var(--border)" }}></div>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontSize: 11, color: "var(--text-3)" }}>類別</div>
+                <div style={{ fontSize: 12, marginTop: 2 }}>{result.is_new ? "新通報" : "已知網址"}</div>
+              </div>
+            </div>
+            <p style={{ color: "var(--text-3)", fontSize: 12, margin: "0 0 24px" }}>
+              你的通報已紀錄於審核佇列,管理員審核後將會更新判定結果。
+            </p>
+          </>
+        ) : (
+          <p style={{ color: "var(--text-3)", fontSize: 14, margin: "0 0 24px" }}>我們將在 24 小時內回覆審核結果</p>
+        )}
+
         <div className="row" style={{ justifyContent: "center", gap: 10 }}>
           <button className="btn ghost" onClick={onBack}>返回填寫</button>
           <button className="btn primary">前往紀錄查看</button>
@@ -445,23 +548,45 @@ function ReportForm({ onSubmit }) {
   const [reason, setReason] = React.useState("");
   const [files, setFiles] = React.useState([]);
   const [urlErr, setUrlErr] = React.useState(null);
+  const [submitErr, setSubmitErr] = React.useState(null);
+  const [submitting, setSubmitting] = React.useState(false);
   const cats = ["假冒官方網站", "釣魚網站", "投資詐騙", "購物詐騙", "其他"];
 
   // URL validation: domain.tld with optional path, no spaces
   const URL_RE = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(\/[^\s]*)?$/i;
   const urlValid = URL_RE.test(url.trim());
-  const ok = urlValid;
+  const ok = urlValid && !submitting;
 
   function handleUrl(v) {
     setUrl(v);
     if (!v.trim()) {setUrlErr(null);return;}
-    if (!URL_RE.test(v.trim())) setUrlErr("網址格式不正確 · 例：example.com 或 example.com/path");else
+    if (!URL_RE.test(v.trim())) setUrlErr("網址格式不正確 · 例:example.com 或 example.com/path");else
     setUrlErr(null);
   }
 
-  function submit() {
-    if (!urlValid) {setUrlErr("請輸入正確的網址格式");return;}
-    onSubmit();
+  async function submit() {
+    if (!urlValid) { setUrlErr("請輸入正確的網址格式"); return; }
+    setSubmitErr(null);
+    setSubmitting(true);
+    try {
+      // 補上 https:// 讓 backend 跟 extension 的格式一致(extension 也送完整 URL)
+      const fullUrl = "https://" + url.trim();
+      const result = await API.submitReport({
+        url: fullUrl,
+        category: cat,
+        reason: reason || null,
+      });
+      onSubmit(result);  // 把後端回的 { url, status, risk_score, is_new } 帶上去
+    } catch (e) {
+      // 401 表示 session 過期(雖然外層 App 會擋住未登入,但保險)
+      if (e.status === 401) {
+        setSubmitErr("登入狀態已失效,請重新登入");
+      } else {
+        setSubmitErr(e.message || "送出失敗,請稍後再試");
+      }
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -499,9 +624,21 @@ function ReportForm({ onSubmit }) {
           <div className="hint">支援 PNG / JPG / PDF · 單檔最大 10MB</div>
         </div>
       </div>
+      {submitErr && (
+        <div style={{
+          margin: "0 24px 16px", padding: "10px 12px", borderRadius: 8,
+          background: "var(--danger-bg)", border: "1px solid #FECACA",
+          color: "#B91C1C", fontSize: 12.5,
+          display: "flex", alignItems: "center", gap: 8
+        }}>
+          {I.warn}<span>{submitErr}</span>
+        </div>
+      )}
       <div className="card-foot">
-        <button className="btn ghost">儲存草稿</button>
-        <button className={"btn primary"} disabled={!ok} onClick={submit} style={{ opacity: ok ? 1 : .5 }}>送出舉報</button>
+        <button className="btn ghost" disabled={submitting}>儲存草稿</button>
+        <button className={"btn primary"} disabled={!ok} onClick={submit} style={{ opacity: ok ? 1 : .5 }}>
+          {submitting ? "送出中…" : "送出舉報"}
+        </button>
       </div>
     </div>);
 

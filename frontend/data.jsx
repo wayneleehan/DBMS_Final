@@ -63,6 +63,79 @@ const MOCK = {
 };
 
 window.MOCK = MOCK;
+
+// ============================================================
+// API client — 統一處理 base URL、JSON、credentials(cookie session)
+// ============================================================
+const API_BASE = "http://localhost:8000/api/v1";
+
+async function apiFetch(path, options = {}) {
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    credentials: "include",  // 關鍵:跨來源請求要帶 session cookie
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    // 後端用 detail 欄位帶錯誤訊息(FastAPI 慣例)
+    const body = await res.json().catch(() => ({}));
+    const msg = body.detail || `HTTP ${res.status}`;
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
+  }
+  // 204 / 空 body 容錯
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+window.API = {
+  login: (role, email, password) =>
+    apiFetch("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ role, email, password }),
+    }),
+  register: (name, email, password) =>
+    apiFetch("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ name, email, password }),
+    }),
+  logout: () => apiFetch("/auth/logout", { method: "POST" }),
+  me: () => apiFetch("/auth/me"),
+
+  // 使用者通報網址。後端會自動關聯 session 裡的 user_id,前端不用傳。
+  submitReport: ({ url, category, reason }) =>
+    apiFetch("/reports", {
+      method: "POST",
+      body: JSON.stringify({ url, category, reason }),
+    }),
+
+  // 目前登入者的通報紀錄 / 統計(個人頁用)
+  getMyReports: (limit = 20) => apiFetch(`/users/me/reports?limit=${limit}`),
+  getMyStats: () => apiFetch("/users/me/stats"),
+};
+
+// WEBSITE.Status → 前端紀錄表用的「狀態」+「判定」對應
+// 後端只給 Status enum,前端衍生出 UI 友善的標籤與 verdict 色
+window.statusToCaseDisplay = (status) => {
+  switch (status) {
+    case "Blocked":  return { caseStatus: "已通過", verdict: "danger" };  // 高度確認
+    case "Warning":  return { caseStatus: "已通過", verdict: "warn"   };  // 偏可疑
+    case "Low_Risk": return { caseStatus: "審核中", verdict: null     };  // 還在觀察
+    case "Safe":     return { caseStatus: "已駁回", verdict: "safe"   };  // 誤報
+    default:         return { caseStatus: status,   verdict: null     };
+  }
+};
+
+// 由 reliability_score(0~100)推導文字稱號,前端顯示用
+window.reputationLevel = (score) => {
+  if (score >= 80) return "資深通報員";
+  if (score >= 50) return "活躍通報員";
+  if (score >= 20) return "新通報員";
+  return "觀察中";
+};
 window.statusMeta = (s) => ({
   safe:      { label: "安全",       cls: "safe" },
   warn:      { label: "可疑",       cls: "warn" },

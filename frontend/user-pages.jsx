@@ -479,22 +479,35 @@ function UserReport() {
       ) : tab === "report" ? (
         <ReportForm onSubmit={(r) => {setResult(r);setSubmitted(true);}} />
       ) : (
-        <AppealForm onSubmit={() => setSubmitted(true)} />
+        <AppealForm onSubmit={(r) => {setResult(r);setSubmitted(true);}} />
       )}
     </div>);
 
 }
 
 function SubmittedCard({ onBack, type, result }) {
+  // result 形狀依 type 不同:
+  //   舉報:{ url, status, risk_score, is_new }
+  //   申訴:{ status: "success", message, appeal_id }
+  const isAppeal = type === "appeal";
   return (
     <div className="card" style={{ maxWidth: 680, margin: "32px auto", textAlign: "center" }}>
       <div className="card-body" style={{ padding: "48px 24px" }}>
         <div style={{ width: 72, height: 72, borderRadius: "50%", background: "var(--orange-light)", display: "grid", placeItems: "center", margin: "0 auto 16px", color: "var(--orange)" }}>
           <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l5 5L20 6" /></svg>
         </div>
-        <h2 style={{ margin: "0 0 8px", fontSize: 22 }}>{type === "report" ? "舉報" : "申訴"}已送出</h2>
+        <h2 style={{ margin: "0 0 8px", fontSize: 22 }}>{isAppeal ? "申訴" : "舉報"}已送出</h2>
 
-        {result ? (
+        {isAppeal && result ? (
+          <>
+            <p style={{ color: "var(--text-3)", fontSize: 14, margin: "0 0 8px" }}>
+              案件編號 <span className="mono">A-{String(result.appeal_id || 0).padStart(6, "0")}</span>
+            </p>
+            <p style={{ color: "var(--text-3)", fontSize: 13, margin: "0 0 24px" }}>
+              {result.message || "管理員將盡速複核你的申訴"}
+            </p>
+          </>
+        ) : !isAppeal && result ? (
           <>
             <p style={{ color: "var(--text-3)", fontSize: 13, margin: "0 0 16px", wordBreak: "break-all" }}>
               <span className="mono">{result.url}</span>
@@ -645,62 +658,177 @@ function ReportForm({ onSubmit }) {
 }
 
 function AppealForm({ onSubmit }) {
-  const [url, setUrl] = React.useState("shopee-promo-2024.com");
+  // 申訴必須挑一筆「自己的通報」(後端 APPEAL 表 FK 到 Report_ID)
+  // UI:輸入框可打字搜尋,下面浮出符合的通報供點選;選中後自動填好 verdict box
+  const [query, setQuery] = React.useState("");
+  const [selectedReport, setSelectedReport] = React.useState(null);
   const [reason, setReason] = React.useState("");
   const [files, setFiles] = React.useState([]);
+  const [myReports, setMyReports] = React.useState([]);
+  const [loadingReports, setLoadingReports] = React.useState(true);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [submitErr, setSubmitErr] = React.useState(null);
+
+  // 載入使用者所有通報供搜尋
+  React.useEffect(() => {
+    API.getMyReports(100)
+      .then(setMyReports)
+      .catch((e) => console.error("Load reports failed:", e))
+      .finally(() => setLoadingReports(false));
+  }, []);
+
+  // 過濾邏輯:有打字才過濾,沒打字顯示全部最近的
+  const filtered = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return myReports.slice(0, 6);
+    return myReports.filter((r) => r.url.toLowerCase().includes(q)).slice(0, 6);
+  }, [query, myReports]);
+
+  const ok = selectedReport && reason.trim().length > 0 && !submitting;
+
+  async function submit() {
+    if (!selectedReport) { setSubmitErr("請從下方選擇要申訴的通報"); return; }
+    if (!reason.trim()) { setSubmitErr("請填寫申訴原因"); return; }
+    setSubmitErr(null);
+    setSubmitting(true);
+    try {
+      const result = await API.submitAppeal({
+        report_id: selectedReport.report_id,
+        reason: reason.trim(),
+      });
+      onSubmit(result);
+    } catch (e) {
+      setSubmitErr(e.status === 401 ? "登入狀態已失效,請重新登入" : (e.message || "送出失敗"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const selDisplay = selectedReport ? statusToCaseDisplay(selectedReport.status) : null;
 
   return (
     <div className="card" style={{ maxWidth: 820 }}>
-      <div className="card-h"><h3>申訴審核結果</h3><span className="sub">對既有判定結果有異議</span></div>
+      <div className="card-h"><h3>申訴審核結果</h3><span className="sub">對自己的通報判定結果有異議</span></div>
       <div className="card-body">
+
         <div className="field">
-          <label>網址</label>
+          <label>選擇要申訴的通報 <span style={{ color: "var(--danger)" }}>*</span></label>
           <div className="input-prefix">
-            <span className="pfx">https://</span>
-            <input value={url} onChange={(e) => setUrl(e.target.value)} />
+            <span className="pfx">{I.search || "🔎"}</span>
+            <input
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setSelectedReport(null); }}
+              placeholder={loadingReports ? "載入中…" : "輸入網址搜尋,或從下方挑選"}
+              disabled={loadingReports}
+            />
           </div>
+
+          {/* 搜尋結果浮出清單 */}
+          {!selectedReport && !loadingReports && (
+            <div style={{
+              marginTop: 8, border: "1px solid var(--border)", borderRadius: 10,
+              maxHeight: 260, overflowY: "auto", background: "#fff"
+            }}>
+              {filtered.length === 0 ? (
+                <div style={{ padding: 14, fontSize: 13, color: "var(--text-3)" }}>
+                  {myReports.length === 0
+                    ? "你還沒有任何通報。請先到「舉報」分頁通報網址。"
+                    : "沒有符合的通報,請調整關鍵字或先到「舉報」分頁通報。"}
+                </div>
+              ) : (
+                filtered.map((r) => (
+                  <button
+                    key={r.report_id}
+                    onClick={() => { setSelectedReport(r); setQuery(r.url); }}
+                    style={{
+                      display: "block", width: "100%", textAlign: "left",
+                      padding: "10px 14px", background: "transparent",
+                      border: "none", borderBottom: "1px solid var(--border)",
+                      cursor: "pointer", fontSize: 13,
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
+                      <span className="mono" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.url}</span>
+                      <span style={{ fontSize: 11, color: "var(--text-3)" }}>
+                        {r.timestamp ? r.timestamp.replace("T", " ").slice(0, 16) : ""}
+                      </span>
+                      <StatusBadge status={statusToCaseDisplay(r.status).verdict || "info"} />
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
+          {selectedReport && (
+            <div className="hint" style={{ marginTop: 6 }}>
+              已選擇:<span className="mono">R-{String(selectedReport.report_id).padStart(6, "0")}</span>
+              <a href="#" onClick={(e) => { e.preventDefault(); setSelectedReport(null); setQuery(""); }}
+                 style={{ marginLeft: 10, color: "var(--orange)" }}>更換</a>
+            </div>
+          )}
         </div>
 
         {/* current verdict box */}
-        <div className="field">
-          <label>目前判定結果</label>
-          <div style={{ border: "1px solid var(--border)", background: "var(--bg-soft)", borderRadius: 10, padding: 16 }}>
-            <div className="row between" style={{ marginBottom: 10 }}>
-              <span style={{ fontSize: 13, color: "var(--text-3)" }}>系統判定</span>
-              <StatusBadge status="warn" />
-            </div>
-            <div className="row" style={{ gap: 24 }}>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--text-3)" }}>風險分數</div>
-                <div className="num" style={{ fontSize: 22, fontWeight: 600, color: "var(--warn)" }}>72</div>
+        {selectedReport && (
+          <div className="field">
+            <label>目前判定結果</label>
+            <div style={{ border: "1px solid var(--border)", background: "var(--bg-soft)", borderRadius: 10, padding: 16 }}>
+              <div className="row between" style={{ marginBottom: 10 }}>
+                <span style={{ fontSize: 13, color: "var(--text-3)" }}>系統判定</span>
+                {selDisplay.verdict ? <StatusBadge status={selDisplay.verdict} /> : <span className="badge muted">{selDisplay.caseStatus}</span>}
               </div>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--text-3)" }}>類型</div>
-                <div style={{ fontSize: 14, fontWeight: 500 }}>釣魚網站</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--text-3)" }}>最後審核</div>
-                <div className="num" style={{ fontSize: 13 }}>2026-05-09 09:11</div>
+              <div className="row" style={{ gap: 24 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--text-3)" }}>風險分數</div>
+                  <div className="num" style={{ fontSize: 22, fontWeight: 600, color: riskColor(selectedReport.risk_score) }}>
+                    {Math.round(selectedReport.risk_score)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--text-3)" }}>類別</div>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>{selectedReport.category || "—"}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--text-3)" }}>通報時間</div>
+                  <div className="num" style={{ fontSize: 13 }}>
+                    {selectedReport.timestamp ? selectedReport.timestamp.replace("T", " ").slice(0, 16) : "—"}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* combined reason + evidence */}
+        {/* reason + evidence */}
         <div className="field">
-          <label>申訴原因與補充證據</label>
+          <label>申訴原因 <span style={{ color: "var(--danger)" }}>*</span></label>
           <textarea className="textarea" rows="5" value={reason} onChange={(e) => setReason(e.target.value)}
-          placeholder="請說明為何判定結果有誤，並提供支持你論點的事實。"></textarea>
+          placeholder="請說明為何判定結果有誤,並提供支持你論點的事實。"></textarea>
           <div style={{ marginTop: 10 }}>
             <DropZone files={files} setFiles={setFiles} />
           </div>
-          <div className="hint">原因與證據皆為選填 · 補充說明可加快複核速度</div>
+          <div className="hint">補充證據檔可加快審核(目前僅 UI 顯示,尚未上傳到伺服器)</div>
         </div>
 
       </div>
+
+      {submitErr && (
+        <div style={{
+          margin: "0 24px 16px", padding: "10px 12px", borderRadius: 8,
+          background: "var(--danger-bg)", border: "1px solid #FECACA",
+          color: "#B91C1C", fontSize: 12.5,
+          display: "flex", alignItems: "center", gap: 8
+        }}>
+          {I.warn}<span>{submitErr}</span>
+        </div>
+      )}
+
       <div className="card-foot">
-        <button className="btn ghost">取消</button>
-        <button className="btn primary" onClick={onSubmit}>送出申訴</button>
+        <button className="btn ghost" disabled={submitting}>取消</button>
+        <button className="btn primary" disabled={!ok} onClick={submit} style={{ opacity: ok ? 1 : .5 }}>
+          {submitting ? "送出中…" : "送出申訴"}
+        </button>
       </div>
     </div>);
 

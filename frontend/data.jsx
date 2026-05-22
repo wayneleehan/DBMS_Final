@@ -115,6 +115,39 @@ window.API = {
   // 目前登入者的通報紀錄 / 統計(個人頁用)
   getMyReports: (limit = 20) => apiFetch(`/users/me/reports?limit=${limit}`),
   getMyStats: () => apiFetch("/users/me/stats"),
+
+  // 對自己的某筆通報提交申訴(對既有判定不服)
+  submitAppeal: ({ report_id, reason, parent_appeal_id }) =>
+    apiFetch("/appeals/", {
+      method: "POST",
+      body: JSON.stringify({ report_id, reason, parent_appeal_id: parent_appeal_id || null }),
+    }),
+
+  // 管理員審核佇列(舉報 + 進行中申訴 UNION)
+  // status: 不傳 = 全部 / '待審核' / '申訴中'
+  getReviewQueue: (status, limit = 50) => {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    params.set("limit", String(limit));
+    return apiFetch(`/admin/queue?${params}`);
+  },
+  getReviewQueueCounts: () => apiFetch("/admin/queue/counts"),
+
+  // 管理員裁決申訴
+  // decision: 'Approved'(申訴通過,撤回對網站的負面判定) / 'Rejected'(駁回申訴,維持原判定)
+  submitReview: ({ appeal_id, decision, ruling_result, is_unreasonable = false }) =>
+    apiFetch("/admin/review", {
+      method: "POST",
+      body: JSON.stringify({ appeal_id, decision, ruling_result, is_unreasonable }),
+    }),
+
+  // 管理員對「舉報」案件直接裁決(不經申訴流程)
+  // verdict: 'safe' / 'warn' / 'danger'
+  submitReportVerdict: ({ report_id, verdict, note }) =>
+    apiFetch("/admin/report-verdict", {
+      method: "POST",
+      body: JSON.stringify({ report_id, verdict, note }),
+    }),
 };
 
 // WEBSITE.Status → 前端紀錄表用的「狀態」+「判定」對應

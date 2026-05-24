@@ -1,6 +1,5 @@
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy import text, Connection
 
-def get_all_patterns(db: Session):
+def get_all_patterns(db: Connection):
     sql = text("SELECT Pattern_ID, Type, Weight FROM fraud_pattern")
     return db.execute(sql).mappings().all()

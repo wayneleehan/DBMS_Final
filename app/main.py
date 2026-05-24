@@ -3,8 +3,7 @@ import os
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, Connection
 from starlette.middleware.sessions import SessionMiddleware
 
 
@@ -14,8 +13,14 @@ from app.api.v1 import warnings, appeal, admin_review, auth, users, reports, vis
 
 
 
+_session_secret = os.getenv("SESSION_SECRET_KEY")
+if not _session_secret:
+    raise RuntimeError(
+        "SESSION_SECRET_KEY 未設定。請在 .env 設定,產生方式:"
+        "uv run python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+    )
 
-app = FastAPI(title="詐騙聯防預警系統 API")
+_https_only = os.getenv("SESSION_HTTPS_ONLY", "false").lower() in ("true", "1", "yes")
 
 
 # Cookie session(simulate login state)
@@ -28,9 +33,6 @@ app.add_middleware(
     max_age=60 * 60 * 24 * 7,  # 7 天
 )
 
-
-# 跨來源:前端 dev port + Chrome extension 都要允許,且為了讓 cookie session 跨來源也能帶,
-# allow_credentials=True 必須開。CORS 規範禁止 "*" + credentials,所以改用 regex。
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"^(https?://(localhost|127\.0\.0\.1)(:\d+)?|chrome-extension://.+)$",
@@ -54,7 +56,7 @@ def read_root():
 
 
 @app.get("/test-db")
-def test_database_connection(db: Session = Depends(get_db)):
+def test_database_connection(db: Connection = Depends(get_db)):
     try:
         result = db.execute(text("SELECT Site_ID, URL, Status, Risk_Score FROM WEBSITE LIMIT 5")).mappings().all()
         return {

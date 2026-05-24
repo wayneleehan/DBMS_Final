@@ -3,13 +3,12 @@ import sys
 import time
 from pathlib import Path
 
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy import text, Connection
 
 from app.core.database import engine
 
 
-def update_website_status_and_score(db: Session, site_id: int, status: str, score: float):
+def update_website_status_and_score(db: Connection, site_id: int, status: str, score: float):
     """
     管理員裁決後,更新特定網站的狀態與風險值。
     - 申訴通過 (Approved):退回 'Safe',分數歸零。
@@ -21,9 +20,10 @@ def update_website_status_and_score(db: Session, site_id: int, status: str, scor
         WHERE Site_ID = :site_id
     """)
     db.execute(query, {"site_id": site_id, "status": status, "score": score})
+    db.commit()
 
 
-def get_ip_block_stats(db: Session, ip_address: str) -> dict:
+def get_ip_block_stats(db: Connection, ip_address: str) -> dict:
     """
     計算特定 IP_Address 下已封鎖網站的比例
     """
@@ -38,7 +38,7 @@ def get_ip_block_stats(db: Session, ip_address: str) -> dict:
     return dict(row) if row else {"total_sites": 0, "blocked_sites": 0}
 
 
-def batch_increase_risk_score_by_ip(db: Session, ip_address: str, score_increment: float):
+def batch_increase_risk_score_by_ip(db: Connection, ip_address: str, score_increment: float):
     """
     批量更新該 IP 下所有未封鎖網址的 Risk_Score
     """
@@ -52,7 +52,7 @@ def batch_increase_risk_score_by_ip(db: Session, ip_address: str, score_incremen
     db.commit()
 
 
-def force_manual_review(db: Session, site_id: int):
+def force_manual_review(db: Connection, site_id: int):
     """
     暫停自動封鎖功能,強制轉入人工審核流程 (將狀態設為 Warning)
     """
@@ -66,7 +66,7 @@ def force_manual_review(db: Session, site_id: int):
 
 
 def create_website(
-    db: Session,
+    db: Connection,
     url: str,
     ip: str | None,
     status: str,
@@ -88,7 +88,7 @@ def create_website(
     return result.lastrowid
 
 
-def update_website_score(db: Session, site_id: int, score: float, status: str):
+def update_website_score(db: Connection, site_id: int, score: float, status: str):
     sql = text("""
         UPDATE WEBSITE
         SET Risk_Score = :score, Status = :status
@@ -98,8 +98,8 @@ def update_website_score(db: Session, site_id: int, score: float, status: str):
     db.commit()
 
 
-def get_website_by_url(db: Session, url: str):
-    sql = text("SELECT Site_ID, URL, IP_Address, Status, Risk_Score FROM WEBSITE WHERE URL = :url")
+def get_website_by_url(db: Connection, url: str):
+    sql = text("SELECT Site_ID, URL, IP_Address, Status, Risk_Score FROM website WHERE URL = :url")
     return db.execute(sql, {"url": url}).mappings().first()
 
 

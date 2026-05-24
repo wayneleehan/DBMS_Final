@@ -1,7 +1,6 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, Connection
 
-def create_alert_log(db: Session, alert_type: str, target_id: str, description: str):
+def create_alert_log(db: Connection, alert_type: str, target_id: str, description: str):
     """
     寫入系統預警紀錄 (Alert_Logs)
     """

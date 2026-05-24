@@ -1,7 +1,7 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from datetime import datetime, timedelta
+from sqlalchemy import text, Connection
 
-def count_recent_reports_for_cib(db: Session, site_id: int, seconds: int = 60) -> int:
+def count_recent_reports_for_cib(db: Connection, site_id: int, seconds: int = 60) -> int:
     """
     計算特定網站最近 N 秒內，來自不同使用者的檢舉數量
     """
@@ -13,13 +13,9 @@ def count_recent_reports_for_cib(db: Session, site_id: int, seconds: int = 60) -
     """)
     result = db.execute(query, {"site_id": site_id, "seconds": seconds}).scalar()
     return result or 0
-from datetime import datetime, timedelta
-from sqlalchemy import text
-from sqlalchemy.orm import Session
-
 
 def create_report(
-    db: Session,
+    db: Connection,
     user_id: int,
     site_id: int,
     evidence_path: str | None = None,
@@ -49,7 +45,7 @@ def create_report(
     db.commit()
     return result.lastrowid
 
-def count_recent_reports_by_user(db: Session, user_id: int, site_id: int, hours: int = 1):
+def count_recent_reports_by_user(db: Connection, user_id: int, site_id: int, hours: int = 1):
 
     time_threshold = datetime.now() - timedelta(hours=hours)
     sql = text("""
@@ -61,7 +57,7 @@ def count_recent_reports_by_user(db: Session, user_id: int, site_id: int, hours:
 
 
 def get_reports_with_website_by_user(
-    db: Session, user_id: int, limit: int = 20
+    db: Connection, user_id: int, limit: int = 20
 ) -> list[dict]:
     """查使用者最近的通報紀錄,JOIN 上 WEBSITE 拿目前 status / risk_score。
     時間倒序,給個人頁的紀錄表用。
@@ -80,7 +76,7 @@ def get_reports_with_website_by_user(
     return [dict(r) for r in rows]
 
 
-def get_report_with_site(db: Session, report_id: int) -> dict | None:
+def get_report_with_site(db: Connection, report_id: int) -> dict | None:
     """查單一 Report 並 JOIN 上 WEBSITE 拿 Site_ID / 目前狀態。
     給 /admin/report-verdict 拿原始狀態(才能寫 Risk_History 的 old_score)。
     """
@@ -96,7 +92,7 @@ def get_report_with_site(db: Session, report_id: int) -> dict | None:
     return dict(row) if row else None
 
 
-def get_user_report_stats(db: Session, user_id: int) -> dict:
+def get_user_report_stats(db: Connection, user_id: int) -> dict:
     """彙整使用者通報統計給個人頁顯示用。
 
     - total: 通報總筆數
@@ -126,4 +122,3 @@ def get_user_report_stats(db: Session, user_id: int) -> dict:
     row = db.execute(sql, {"user_id": user_id}).mappings().first()
     # 用 dict 包一層並把 None 轉 0,前端不用做 null check
     return {k: int(v or 0) for k, v in dict(row).items()}
-

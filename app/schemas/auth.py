@@ -19,7 +19,7 @@ class UserInfo(BaseModel):
     name: str
     reliability_score: float | None = None  # 只有 user 有
     admin_role: str | None = None           # 只有 admin 有(Moderator / SuperAdmin)
-    created_at: datetime
+    created_at: datetime | None = None
 
 
 class LoginResponse(BaseModel):

@@ -90,7 +90,7 @@ def create_website(
 
 def update_website_score(db: Session, site_id: int, score: float, status: str):
     sql = text("""
-        UPDATE website
+        UPDATE WEBSITE
         SET Risk_Score = :score, Status = :status
         WHERE Site_ID = :site_id
     """)
@@ -99,7 +99,7 @@ def update_website_score(db: Session, site_id: int, score: float, status: str):
 
 
 def get_website_by_url(db: Session, url: str):
-    sql = text("SELECT Site_ID, URL, IP_Address, Status, Risk_Score FROM website WHERE URL = :url")
+    sql = text("SELECT Site_ID, URL, IP_Address, Status, Risk_Score FROM WEBSITE WHERE URL = :url")
     return db.execute(sql, {"url": url}).mappings().first()
 
 

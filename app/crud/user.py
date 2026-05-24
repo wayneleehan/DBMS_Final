@@ -1,8 +1,7 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, Connection
 
 
-def get_user_by_email(db: Session, email: str) -> dict | None:
+def get_user_by_email(db: Connection, email: str) -> dict | None:
     """依 Email 查使用者,有就回 dict(含 Password_Hash),沒有回 None。
     給登入流程使用。
     """
@@ -16,7 +15,7 @@ def get_user_by_email(db: Session, email: str) -> dict | None:
     return dict(row) if row else None
 
 
-def get_user_by_id(db: Session, user_id: int) -> dict | None:
+def get_user_by_id(db: Connection, user_id: int) -> dict | None:
     """依 ID 查使用者(不含 Password_Hash,給 session 還原 user info 用)。"""
     row = db.execute(
         text("""
@@ -28,7 +27,7 @@ def get_user_by_id(db: Session, user_id: int) -> dict | None:
     return dict(row) if row else None
 
 
-def create_user(db: Session, email: str, name: str, password_hash: str) -> int:
+def create_user(db: Connection, email: str, name: str, password_hash: str) -> int:
     """新增一筆使用者,回傳 User_ID。Reliability_Score 走 schema 預設(100)。"""
     result = db.execute(
         text("""
@@ -41,7 +40,7 @@ def create_user(db: Session, email: str, name: str, password_hash: str) -> int:
     return result.lastrowid
 
 
-def deduct_reliability_score(db: Session, user_id: int, deduct_points: float = 30.0):
+def deduct_reliability_score(db: Connection, user_id: int, deduct_points: float = 30.0):
     """
     若判定為「無理取鬧」，加重扣除使用者的信譽分。
     """
@@ -51,7 +50,10 @@ def deduct_reliability_score(db: Session, user_id: int, deduct_points: float = 3
         WHERE User_ID = :user_id
     """)
     db.execute(query, {"user_id": user_id, "deduct_points": deduct_points})
-def update_reliability_score(db: Session, user_id: int, delta: float):
+    db.commit()
+
+
+def update_reliability_score(db: Connection, user_id: int, delta: float):
     
     sql = text("""
         UPDATE users 

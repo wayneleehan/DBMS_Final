@@ -1,8 +1,7 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, Connection
 from typing import Optional
 
-def create_appeal(db: Session, report_id: int, reason: str, evidence_link: Optional[str] = None, parent_appeal_id: Optional[int] = None) -> int:
+def create_appeal(db: Connection, report_id: int, reason: str, evidence_link: Optional[str] = None, parent_appeal_id: Optional[int] = None) -> int:
     """
     建立新的申訴案件。若為再審，則關聯 Parent_Appeal_ID。
     """
@@ -22,7 +21,7 @@ def create_appeal(db: Session, report_id: int, reason: str, evidence_link: Optio
     # 回傳剛新增成功的那一筆 Appeal_ID
     return result.lastrowid
 
-def get_appeal_full_details(db: Session, appeal_id: int) -> dict:
+def get_appeal_full_details(db: Connection, appeal_id: int) -> dict:
     """
     管理員審核時，透過 JOIN 查詢全面審視案件資訊。
     包含：申訴理由、原始檢舉證據、伺服器資訊，若是再申訴則嘗試抓取歷史裁決。
@@ -44,7 +43,7 @@ def get_appeal_full_details(db: Session, appeal_id: int) -> dict:
     row = db.execute(query, {"appeal_id": appeal_id}).mappings().first()
     return dict(row) if row else None
 
-def update_appeal_status(db: Session, appeal_id: int, status: str):
+def update_appeal_status(db: Connection, appeal_id: int, status: str):
     """
     裁決後執行 UPDATE 將狀態標記為 Approved 或 Rejected。
     """

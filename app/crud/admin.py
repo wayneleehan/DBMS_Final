@@ -1,8 +1,7 @@
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy import text, Connection
 
 
-def get_admin_by_email(db: Session, email: str) -> dict | None:
+def get_admin_by_email(db: Connection, email: str) -> dict | None:
     """依 Email 查管理員,有就回 dict(含 Password_Hash),沒有回 None。
     給登入流程使用。
     """
@@ -16,7 +15,7 @@ def get_admin_by_email(db: Session, email: str) -> dict | None:
     return dict(row) if row else None
 
 
-def get_admin_by_id(db: Session, admin_id: int) -> dict | None:
+def get_admin_by_id(db: Connection, admin_id: int) -> dict | None:
     """依 ID 查管理員(不含 Password_Hash,給 session 還原 admin info 用)。"""
     row = db.execute(
         text("""
@@ -80,7 +79,7 @@ _QUEUE_APPEALS_SQL = """
 
 
 def get_review_queue(
-    db: Session, status_filter: str | None = None, limit: int = 50
+    db: Connection, status_filter: str | None = None, limit: int = 50
 ) -> list[dict]:
     """回傳待審核佇列。
     status_filter 可以是 '待審核' / '申訴中' / None(全部)。
@@ -102,8 +101,8 @@ def get_review_queue(
     return [dict(r) for r in rows]
 
 
-def get_review_queue_counts(db: Session) -> dict:
+def get_review_queue_counts(db: Connection) -> dict:
     """佇列各狀態的計數,給前端篩選 chip 顯示用。"""
     pending = db.execute(text(f"SELECT COUNT(*) FROM ({_QUEUE_REPORTS_SQL}) q")).scalar() or 0
     appealing = db.execute(text(f"SELECT COUNT(*) FROM ({_QUEUE_APPEALS_SQL}) q")).scalar() or 0
-    return {"pending": int(pending), "appealing": int(appealing)}
+    return

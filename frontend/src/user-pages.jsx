@@ -342,9 +342,7 @@ export function UserProfile({ user }) {
                     <h1 className="page-title">個人頁面</h1>
                     <p className="page-sub">查看你的帳號資訊、信譽積分與通報紀錄</p>
                 </div>
-                <div className="row">
-                    <button className="btn ghost">編輯個人資料</button>
-                </div>
+                <div className="row"></div>
             </div>
 
             <div className="row" style={{ gap: 12, marginBottom: 20, alignItems: "stretch" }}>
@@ -382,7 +380,7 @@ export function UserProfile({ user }) {
                             <div style={{ fontSize: 17, fontWeight: 600 }}>{u.name}</div>
                             <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>{u.email}</div>
                         </div>
-                        <div className="row" style={{ gap: 24 }}>
+                        <div className="row" style={{ gap: 24, alignItems: "flex-start" }}>
                             <div><div style={{ fontSize: 11, color: "var(--text-3)" }}>帳號狀態</div><div style={{ marginTop: 4 }}><StatusBadge status="safe" /></div></div>
                             <div><div style={{ fontSize: 11, color: "var(--text-3)" }}>加入日期</div><div className="num" style={{ marginTop: 4, fontSize: 13 }}>{u.joined}</div></div>
                             <div><div style={{ fontSize: 11, color: "var(--text-3)" }}>身分</div><div style={{ marginTop: 4, fontSize: 13 }}>一般使用者</div></div>
@@ -395,7 +393,6 @@ export function UserProfile({ user }) {
             <div className="card">
                 <div className="card-h">
                     <div><h3>通報紀錄</h3><div className="sub">最近 {records.length} 筆 · 共 {u.stats.total} 筆</div></div>
-                    <div className="row"><button className="btn ghost sm">查看全部</button></div>
                 </div>
                 <table className="table">
                     <thead>
@@ -434,7 +431,7 @@ export function UserProfile({ user }) {
 }
 
 // ===== USER: REPORT =====
-export function UserReport() {
+export function UserReport({ onGoToProfile }) {
     const [tab, setTab] = React.useState("report");
     const [submitted, setSubmitted] = React.useState(false);
     const [result, setResult] = React.useState(null);  // 後端 /reports 回的 {url, status, risk_score, is_new}
@@ -456,7 +453,7 @@ export function UserReport() {
                 </button>
             </div>
             {submitted ? (
-                <SubmittedCard onBack={() => { setSubmitted(false); setResult(null); }} type={tab} result={result} />
+                <SubmittedCard onBack={() => { setSubmitted(false); setResult(null); }} type={tab} result={result} onGoToProfile={onGoToProfile} />
             ) : tab === "report" ? (
                 <ReportForm onSubmit={(r) => { setResult(r); setSubmitted(true); }} />
             ) : (
@@ -466,7 +463,7 @@ export function UserReport() {
     );
 }
 
-function SubmittedCard({ onBack, type, result }) {
+function SubmittedCard({ onBack, type, result, onGoToProfile }) {
     // result 形狀依 type 不同:
     //   舉報:{url, status, risk_score, is_new}
     //   申訴:{status: "success", message, appeal_id }
@@ -517,7 +514,7 @@ function SubmittedCard({ onBack, type, result }) {
                 )}
                 <div className="row" style={{ justifyContent: "center", gap: 10 }}>
                     <button className="btn ghost" onClick={onBack}>返回填寫</button>
-                    <button className="btn primary">前往紀錄查看</button>
+                    <button className="btn primary" onClick={onGoToProfile}>前往紀錄查看</button>
                 </div>
             </div>
         </div>

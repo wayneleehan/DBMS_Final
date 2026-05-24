@@ -44,4 +44,6 @@ export const API = {
         apiFetch("/admin/review", { method: "POST", body: JSON.stringify({ appeal_id, decision, ruling_result, is_unreasonable }) }),
     submitReportVerdict: ({ report_id, verdict, note }) =>
         apiFetch("/admin/report-verdict", { method: "POST", body: JSON.stringify({ report_id, verdict, note }) }),
+    getAlerts: (limit = 50) => apiFetch(`/warnings/alerts?limit=${limit}`),
+    getAdminHistory: (limit = 6) => apiFetch(`/admin/history?limit=${limit}`),
 };

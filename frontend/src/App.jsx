@@ -15,6 +15,7 @@ function App() {
   const [userPage, setUserPage] = React.useState("overview");
   const [adminPage, setAdminPage] = React.useState("review");
   const [openCase, setOpenCase] = React.useState(null);
+  const [refreshKey, setRefreshKey] = React.useState(0);
 
   React.useEffect(() => {
     API.me()
@@ -67,8 +68,8 @@ function App() {
     if (userPage === "report") body = <UserReport onGoToProfile={() => setUserPage("profile")} />;
     if (userPage === "overview") body = <WebsiteOverview />;
   } else {
-    if (adminPage === "review") body = <AdminReview onOpen={(c) => { setOpenCase(c); setAdminPage("detail"); }} />;
-    if (adminPage === "detail" && openCase) body = <ReviewDetail caseData={openCase} onBack={() => setAdminPage("review")} />;
+    if (adminPage === "review") body = <AdminReview key={refreshKey} onOpen={(c) => { setOpenCase(c); setAdminPage("detail"); }} />;
+    if (adminPage === "detail" && openCase) body = <ReviewDetail caseData={openCase} onBack={() => { setRefreshKey(k => k + 1); setAdminPage("review"); }} />;
     if (adminPage === "alert") body = <AdminAlert />;
     if (adminPage === "aprofile") body = <AdminProfile user={currentUser} />;
   }

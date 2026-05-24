@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import text
+import json
 
 from app.api.deps import require_admin
 from app.core.database import get_db
@@ -73,3 +75,37 @@ def submit_report_verdict(
         raise HTTPException(status_code=404, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"裁決處理失敗,伺服器發生錯誤並已回滾: {str(e)}")
+
+@router.get("/history", response_model=list)
+def get_admin_history(
+    limit: int = Query(6, ge=1, le=100),
+    db: Session = Depends(get_db),
+    admin: dict = Depends(require_admin),
+):
+    """取得目前登入管理員的審核歷史。"""
+    rows = db.execute(text("""
+        SELECT
+            al.Log_ID,
+            al.Action_Type,
+            al.New_Data,
+            al.Timestamp,
+            w.URL
+        FROM audit_log al
+        LEFT JOIN WEBSITE w ON JSON_UNQUOTE(JSON_EXTRACT(al.New_Data, '$.site_id')) = w.Site_ID
+        WHERE al.Admin_ID = :admin_id
+          AND al.Action_Type IN ('REVIEW_REPORT', 'REVIEW_APPEAL')
+        ORDER BY al.Timestamp DESC
+        LIMIT :limit
+    """), {"admin_id": admin["id"], "limit": limit}).mappings().all()
+
+    result = []
+    for r in rows:
+        new_data = json.loads(r["New_Data"]) if r["New_Data"] else {}
+        result.append({
+            "time": r["Timestamp"].strftime("%Y-%m-%d %H:%M") if r["Timestamp"] else "—",
+            "url": r["URL"] or "—",
+            "type": "申訴" if r["Action_Type"] == "REVIEW_APPEAL" else "舉報",
+            "verdict": new_data.get("verdict") or ("safe" if new_data.get("appeal_status") == "Approved" else "danger"),
+            "note": new_data.get("note") or new_data.get("ruling") or "",
+        })
+    return result

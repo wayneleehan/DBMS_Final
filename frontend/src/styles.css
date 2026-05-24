@@ -581,8 +581,7 @@ a { color: inherit; text-decoration: none; }
 /* Alert severity rows */
 .alert-row {
   display: grid;
-  grid-template-columns: 6px 1fr auto;
-  gap: 0;
+  grid-template-columns: 6px 1fr;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -594,10 +593,8 @@ a { color: inherit; text-decoration: none; }
 .alert-row .sev {
   background: var(--text-4);
 }
-.alert-row.critical .sev { background: var(--danger); }
-.alert-row.high .sev { background: var(--warn); }
-.alert-row.medium .sev { background: var(--info); }
-.alert-row.low .sev { background: var(--text-4); }
+.alert-row.cib .sev { background: var(--danger); }
+.alert-row.cluster .sev { background: var(--warn); }
 .alert-row .body {
   padding: 16px 18px;
   display: flex; flex-direction: column; gap: 6px;
@@ -605,12 +602,7 @@ a { color: inherit; text-decoration: none; }
 .alert-row .body .top {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
-.alert-row .body .title { font-weight: 600; font-size: 14px; }
-.alert-row .body .desc { font-size: 12.5px; color: var(--text-3); }
-.alert-row .actions {
-  display: flex; align-items: center; gap: 8px;
-  padding: 0 18px;
-}
+.alert-row .body .desc { font-size: 14px; color: var(--text-2); }
 
 /* LOGIN — dark header band + centered card */
 .login-shell {

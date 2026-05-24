@@ -5,6 +5,8 @@ from app.api.deps import require_admin
 from app.core.database import get_db
 from app.schemas.early_warning import CIBMonitorRequest, ClusterMonitorRequest, WarningResponse
 from app.services import early_warning
+from sqlalchemy import text
+from fastapi import Query
 
 router = APIRouter(prefix="/api/v1/warnings", tags=["Early Warning System"])
 
@@ -41,3 +43,26 @@ def trigger_cluster_monitor(
         alert_triggered=result["alert_triggered"],
         details=result["details"]
     )
+
+@router.get("/alerts")
+def get_alerts(
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin),
+):
+    rows = db.execute(text("""
+        SELECT Alert_ID, Alert_Type, Target_ID, Description, Timestamp
+        FROM alert_logs
+        ORDER BY Timestamp DESC
+        LIMIT :limit
+    """), {"limit": limit}).mappings().all()
+    return [
+        {
+            "id": f"ALERT-{r['Alert_ID']}",
+            "type": r["Alert_Type"],
+            "desc": r["Description"],
+            "related": r["Target_ID"],
+            "time": r["Timestamp"].strftime("%Y-%m-%d %H:%M") if r["Timestamp"] else "—",
+        }
+        for r in rows
+    ]

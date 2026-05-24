@@ -23,6 +23,9 @@ if not _session_secret:
 _https_only = os.getenv("SESSION_HTTPS_ONLY", "false").lower() in ("true", "1", "yes")
 
 
+app = FastAPI(title="詐騙聯防預警系統")
+
+
 # Cookie session(simulate login state)
 # secret 從 .env 讀;沒設就用 dev fallback(部署時務必設正確值)
 app.add_middleware(

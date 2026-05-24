@@ -7,18 +7,35 @@ from sqlalchemy import text
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.database import get_db
-from app.api import reports, visits
-from app.api.v1 import warnings, appeal, admin_review, auth, users
+from app.api.v1 import (
+    admin_review,
+    appeal,
+    auth,
+    reports,
+    users,
+    visits,
+    warnings,
+)
 
 app = FastAPI(title="詐騙聯防預警系統 API")
 
-# Cookie session(simulate login state)
-# secret 從 .env 讀;沒設就用 dev fallback(部署時務必設正確值)
+# Cookie session — secret 與 HTTPS 開關都從 .env 讀,不在程式裡寫死。
+# 沒設 SESSION_SECRET_KEY → 直接 raise,避免上 prod 才發現用了 dev fallback。
+_session_secret = os.getenv("SESSION_SECRET_KEY")
+if not _session_secret:
+    raise RuntimeError(
+        "SESSION_SECRET_KEY 未設定。請在 .env 設定,產生方式:"
+        "uv run python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+    )
+
+# 上 production 時請在環境變數設 SESSION_HTTPS_ONLY=true(只走 HTTPS 才送 cookie)
+_https_only = os.getenv("SESSION_HTTPS_ONLY", "false").lower() in ("true", "1", "yes")
+
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("SESSION_SECRET_KEY", "dev-only-do-not-use-in-prod"),
+    secret_key=_session_secret,
     same_site="lax",
-    https_only=False,  # 本機 dev 用 http;上 prod 改 True
+    https_only=_https_only,
     max_age=60 * 60 * 24 * 7,  # 7 天
 )
 

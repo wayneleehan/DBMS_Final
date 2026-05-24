@@ -80,6 +80,22 @@ def get_reports_with_website_by_user(
     return [dict(r) for r in rows]
 
 
+def get_report_with_site(db: Session, report_id: int) -> dict | None:
+    """查單一 Report 並 JOIN 上 WEBSITE 拿 Site_ID / 目前狀態。
+    給 /admin/report-verdict 拿原始狀態(才能寫 Risk_History 的 old_score)。
+    """
+    sql = text("""
+        SELECT
+            r.Report_ID, r.User_ID, r.Site_ID, r.Category, r.Reason, r.Timestamp,
+            w.URL, w.Status AS Website_Status, w.Risk_Score
+        FROM Report r
+        JOIN WEBSITE w ON r.Site_ID = w.Site_ID
+        WHERE r.Report_ID = :report_id
+    """)
+    row = db.execute(sql, {"report_id": report_id}).mappings().first()
+    return dict(row) if row else None
+
+
 def get_user_report_stats(db: Session, user_id: int) -> dict:
     """彙整使用者通報統計給個人頁顯示用。
 

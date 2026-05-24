@@ -1,5 +1,7 @@
-// Icons + shared UI components
-const I = {
+import React from "react";
+import { statusMeta, caseStatusMeta, riskColor, reputationLevel } from "./data.jsx";
+
+export const I = {
   shield: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 3v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg>,
   user: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>,
   flag: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg>,
@@ -25,20 +27,19 @@ const I = {
   globe: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg>,
 };
 
-// Status badge
-function StatusBadge({ status }) {
-  const m = window.statusMeta(status);
+export function StatusBadge({ status }) {
+  const m = statusMeta(status);
   return <span className={"badge " + m.cls}><span className="dot"></span>{m.label}</span>;
 }
-function CaseBadge({ status }) {
-  const m = window.caseStatusMeta(status);
+
+export function CaseBadge({ status }) {
+  const m = caseStatusMeta(status);
   return <span className={"badge " + m.cls}><span className="dot"></span>{status}</span>;
 }
 
-// Risk score ring
-function RiskRing({ value, size = 56 }) {
-  const c = window.riskColor(value);
-  const style = { "--v": value, "--c": c, width: size+"px", height: size+"px" };
+export function RiskRing({ value, size = 56 }) {
+  const c = riskColor(value);
+  const style = { "--v": value, "--c": c, width: size + "px", height: size + "px" };
   return (
     <div className="ring" style={style}>
       <span className="num" style={{ color: c }}>{value}</span>
@@ -46,21 +47,17 @@ function RiskRing({ value, size = 56 }) {
   );
 }
 
-// Stat card
-function Stat({ label, value, delta, accent, icon, suffix }) {
+export function Stat({ label, value, delta, accent, icon, suffix }) {
   return (
     <div className={"stat" + (accent ? " accent" : "")}>
-      <div className="label">
-        {icon}{label}
-      </div>
-      <div className="value">{value}{suffix && <span style={{fontSize:14,color:"var(--text-3)",marginLeft:4}}>{suffix}</span>}</div>
+      <div className="label">{icon}{label}</div>
+      <div className="value">{value}{suffix && <span style={{ fontSize: 14, color: "var(--text-3)", marginLeft: 4 }}>{suffix}</span>}</div>
       {delta && <div className={"delta " + (delta.dir || "")}>{I.trend}{delta.text}</div>}
     </div>
   );
 }
 
-// Topbar
-function Topbar({ crumbs }) {
+export function Topbar({ crumbs }) {
   return (
     <div className="topbar">
       <div className="crumbs">
@@ -75,21 +72,19 @@ function Topbar({ crumbs }) {
   );
 }
 
-// Sidebar
-function Sidebar({ role, user, page, onNav, onLogout }) {
+export function Sidebar({ role, user, page, onNav, onLogout }) {
   const userItems = [
-    { id: "overview",label: "總覽", icon: I.list },
-    { id: "report",  label: "通報",     icon: I.flag },
+    { id: "overview", label: "總覽", icon: I.list },
+    { id: "report", label: "通報", icon: I.flag },
     { id: "profile", label: "個人", icon: I.user },
   ];
   const adminItems = [
-    { id: "review",  label: "網址審核", icon: I.check, badge: "12" },
-    { id: "alert",   label: "警報系統", icon: I.warn, badge: "6" },
-    { id: "aprofile",label: "個人", icon: I.user },
+    { id: "review", label: "網址審核", icon: I.check, badge: "12" },
+    { id: "alert", label: "警報系統", icon: I.warn, badge: "6" },
+    { id: "aprofile", label: "個人", icon: I.user },
   ];
   const items = role === "admin" ? adminItems : userItems;
 
-  // 從後端 UserInfo 衍生側欄需要的欄位;沒登入(理論上不會走到 Sidebar)用空字串
   const me = {
     initials: user?.name ? user.name[0] : "?",
     name: user?.name || "—",
@@ -100,17 +95,13 @@ function Sidebar({ role, user, page, onNav, onLogout }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-title">{role === "admin" ? "Admin Console" : "Menu"}</div>
-
       {items.map(it => (
-        <button key={it.id}
-          className={"nav-item" + (page === it.id ? " active" : "")}
-          onClick={() => onNav(it.id)}>
+        <button key={it.id} className={"nav-item" + (page === it.id ? " active" : "")} onClick={() => onNav(it.id)}>
           <span className="nav-icon">{it.icon}</span>
           <span>{it.label}</span>
           {it.badge && <span className="nav-badge">{it.badge}</span>}
         </button>
       ))}
-
       <div className="sidebar-foot">
         <div className="avatar">{me.initials}</div>
         <div className="who">
@@ -122,11 +113,3 @@ function Sidebar({ role, user, page, onNav, onLogout }) {
     </aside>
   );
 }
-
-window.I = I;
-window.StatusBadge = StatusBadge;
-window.CaseBadge = CaseBadge;
-window.RiskRing = RiskRing;
-window.Stat = Stat;
-window.Topbar = Topbar;
-window.Sidebar = Sidebar;

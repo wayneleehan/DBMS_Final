@@ -10,7 +10,7 @@ def ensure_server_info_exists(db: Connection, ip: str):
 
     if not result:
         insert_sql = text("""
-            INSERT INTO server_info (IP_Address, Country, ISP, ASN) 
+            INSERT INTO SERVER_INFO (IP_Address, Country, ISP, ASN) 
             VALUES (:ip, 'Unknown', 'Unknown', 'Unknown')
         """)
         db.execute(insert_sql, {"ip": ip})

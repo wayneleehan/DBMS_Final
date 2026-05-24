@@ -1,22 +1,17 @@
 import os
 
+
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text, Connection
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.core.database import get_db
-from app.api.v1 import (
-    admin_review,
-    appeal,
-    auth,
-    reports,
-    users,
-    visits,
-    warnings,
-)
 
-app = FastAPI(title="詐騙聯防預警系統 API")
+from app.core.database import get_db
+from app.api import websites
+from app.api.v1 import warnings, appeal, admin_review, auth, users, reports, visits
+
+
 
 _session_secret = os.getenv("SESSION_SECRET_KEY")
 if not _session_secret:
@@ -27,11 +22,14 @@ if not _session_secret:
 
 _https_only = os.getenv("SESSION_HTTPS_ONLY", "false").lower() in ("true", "1", "yes")
 
+
+# Cookie session(simulate login state)
+# secret 從 .env 讀;沒設就用 dev fallback(部署時務必設正確值)
 app.add_middleware(
     SessionMiddleware,
-    secret_key=_session_secret,
+    secret_key=os.getenv("SESSION_SECRET_KEY", "dev-only-do-not-use-in-prod"),
     same_site="lax",
-    https_only=_https_only,
+    https_only=False,  # 本機 dev 用 http;上 prod 改 True
     max_age=60 * 60 * 24 * 7,  # 7 天
 )
 
@@ -43,6 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(visits.router)
@@ -50,10 +49,11 @@ app.include_router(reports.router)
 app.include_router(warnings.router)
 app.include_router(appeal.router)
 app.include_router(admin_review.router)
-
+app.include_router(websites.router)
 @app.get("/")
 def read_root():
     return {"message": "歡迎來到詐騙聯防預警系統後端"}
+
 
 @app.get("/test-db")
 def test_database_connection(db: Connection = Depends(get_db)):

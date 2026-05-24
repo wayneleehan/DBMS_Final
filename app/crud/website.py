@@ -90,7 +90,7 @@ def create_website(
 
 def update_website_score(db: Connection, site_id: int, score: float, status: str):
     sql = text("""
-        UPDATE website
+        UPDATE WEBSITE
         SET Risk_Score = :score, Status = :status
         WHERE Site_ID = :site_id
     """)

@@ -7,7 +7,7 @@ def get_user_by_email(db: Connection, email: str) -> dict | None:
     """
     row = db.execute(
         text("""
-            SELECT User_ID, Email, Name, Password_Hash, Reliability_Score, Created_At
+            SELECT User_ID, Email, Password_Hash, Reliability_Score
             FROM USERS WHERE Email = :email
         """),
         {"email": email},
@@ -19,7 +19,7 @@ def get_user_by_id(db: Connection, user_id: int) -> dict | None:
     """依 ID 查使用者(不含 Password_Hash,給 session 還原 user info 用)。"""
     row = db.execute(
         text("""
-            SELECT User_ID, Email, Name, Reliability_Score, Created_At
+            SELECT User_ID, Email, Reliability_Score
             FROM USERS WHERE User_ID = :user_id
         """),
         {"user_id": user_id},
@@ -31,10 +31,10 @@ def create_user(db: Connection, email: str, name: str, password_hash: str) -> in
     """新增一筆使用者,回傳 User_ID。Reliability_Score 走 schema 預設(100)。"""
     result = db.execute(
         text("""
-            INSERT INTO USERS (Email, Name, Password_Hash)
-            VALUES (:email, :name, :pwd_hash)
+            INSERT INTO USERS (Email, Password_Hash)
+            VALUES (:email, :pwd_hash)
         """),
-        {"email": email, "name": name, "pwd_hash": password_hash},
+        {"email": email, "pwd_hash": password_hash},
     )
     db.commit()
     return result.lastrowid
@@ -56,7 +56,7 @@ def deduct_reliability_score(db: Connection, user_id: int, deduct_points: float 
 def update_reliability_score(db: Connection, user_id: int, delta: float):
     
     sql = text("""
-        UPDATE users 
+        UPDATE USERS  
         SET Reliability_Score = LEAST(100, GREATEST(0, Reliability_Score + :delta))
         WHERE User_ID = :user_id
     """)

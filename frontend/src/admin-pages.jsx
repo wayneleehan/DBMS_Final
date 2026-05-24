@@ -1,5 +1,10 @@
+import React from "react";
+import { MOCK } from "./data.jsx";
+import { API } from "./api/index.js";
+import { I, Stat, CaseBadge, RiskRing, StatusBadge } from "./components.jsx";
+
 // ===== ADMIN: REVIEW PAGE =====
-function AdminReview({ onOpen }) {
+export function AdminReview({ onOpen }) {
   // filter:'all' / '待審核' / '申訴中' / '已通過' / '已駁回'
   // 後端目前只有「待審核 / 申訴中」兩種有資料,其他兩個會 hardcode 0(等之後做歷史紀錄 API)
   const [filter, setFilter] = React.useState("all");
@@ -125,7 +130,7 @@ function AdminReview({ onOpen }) {
 }
 
 // ===== REVIEW DETAIL =====
-function ReviewDetail({ caseData, onBack }) {
+export function ReviewDetail({ caseData, onBack }) {
   const c = caseData;
   const [verdict, setVerdict] = React.useState(null);
   const [note, setNote] = React.useState("");
@@ -234,7 +239,7 @@ function ReviewDetail({ caseData, onBack }) {
                 </div>
                 <div>
                   <div style={{fontSize:11,color:"var(--text-3)",marginBottom:6}}>目前狀態</div>
-                  <StatusBadge status="warn"/>
+                  <StatusBadge status={c.website_status || "warn"}/>
                   <div style={{fontSize:11,color:"var(--text-3)",marginTop:6}}>已進入觀察</div>
                 </div>
                 <div>
@@ -258,13 +263,10 @@ function ReviewDetail({ caseData, onBack }) {
               <p style={{fontSize:14,lineHeight:1.7,color:"var(--text-2)",margin:"0 0 20px"}}>
                 {c.reason || "假冒銀行登入頁，UI 與官方相似度極高，要求用戶輸入網銀帳號密碼與 OTP，並以「帳戶異常」為由誘導匯款。"}
               </p>
-
               <div className="section-title">證據檔案</div>
               <div className="grid cols-3" style={{gap:10}}>
                 {(c.evidence || ["screenshot-01.png","screenshot-02.png","evidence.txt"]).map((f,i) => (
-                  <div key={i} className="placeholder-img" style={{height:120}}>
-                    [{f}]
-                  </div>
+                  <div key={i} className="placeholder-img" style={{height:120}}>[{f}]</div>
                 ))}
               </div>
             </div>
@@ -304,7 +306,6 @@ function ReviewDetail({ caseData, onBack }) {
         <div className="card" style={{position:"sticky",top:80}}>
           <div className="card-h"><h3>審核決定</h3></div>
           <div className="card-body">
-
             <div className="section-title">判定</div>
             <div style={{display:"grid",gap:8,marginBottom:18}}>
               <VerdictButton id="safe" current={verdict} onSelect={setVerdict} label={isAppeal ? "申訴通過(撤回判定)" : "判定為安全"} tone="safe"/>
@@ -312,29 +313,21 @@ function ReviewDetail({ caseData, onBack }) {
               <VerdictButton id="danger" current={verdict} onSelect={setVerdict} label="判定為高風險" tone="danger"/>
               {isAppeal && <VerdictButton id="reject" current={verdict} onSelect={setVerdict} label="駁回申訴(維持原判)" tone="muted"/>}
             </div>
-
             <div className="field" style={{marginBottom:0}}>
               <label>管理員備註 <span style={{color:"var(--danger)"}}>*</span></label>
               <textarea className="textarea" rows="4" value={note} onChange={e => setNote(e.target.value)}
                 placeholder="說明判定理由,內部紀錄用…"></textarea>
             </div>
-
             {submitErr && (
-              <div style={{
-                marginTop:12,padding:"10px 12px",borderRadius:8,
-                background:"var(--danger-bg)",border:"1px solid #FECACA",
-                color:"#B91C1C",fontSize:12.5
-              }}>{submitErr}</div>
+              <div style={{marginTop:12,padding:"10px 12px",borderRadius:8,background:"var(--danger-bg)",border:"1px solid #FECACA",color:"#B91C1C",fontSize:12.5}}>
+                {submitErr}
+              </div>
             )}
           </div>
           <div className="card-foot">
             <button className="btn ghost" disabled={submitting} onClick={onBack}>取消</button>
-            <button
-              className="btn primary"
-              disabled={!verdict || submitting}
-              style={{opacity:(verdict && !submitting)?1:.5}}
-              onClick={handleSubmit}
-            >
+            <button className="btn primary" disabled={!verdict || submitting}
+              style={{opacity:(verdict && !submitting)?1:.5}} onClick={handleSubmit}>
               {submitting ? "送出中…" : "送出審核結果"}
             </button>
           </div>
@@ -353,15 +346,13 @@ function VerdictButton({ id, current, onSelect, label, tone }) {
   }[tone];
   const active = current === id;
   return (
-    <button
-      onClick={() => onSelect(id)}
-      style={{
-        textAlign:"left", padding:"10px 14px", borderRadius:8,
-        border: "1.5px solid " + (active ? colors.c : colors.bd),
-        background: active ? colors.bg : "#fff",
-        color: colors.c, fontWeight: active ? 600 : 500, fontSize: 13.5,
-        display:"flex", alignItems:"center", gap:10, cursor:"pointer"
-      }}>
+    <button onClick={() => onSelect(id)} style={{
+      textAlign:"left", padding:"10px 14px", borderRadius:8,
+      border: "1.5px solid " + (active ? colors.c : colors.bd),
+      background: active ? colors.bg : "#fff",
+      color: colors.c, fontWeight: active ? 600 : 500, fontSize: 13.5,
+      display:"flex", alignItems:"center", gap:10, cursor:"pointer"
+    }}>
       <span style={{width:14,height:14,borderRadius:"50%",border:"2px solid " + colors.c, display:"grid",placeItems:"center"}}>
         {active && <span style={{width:6,height:6,borderRadius:"50%",background:colors.c}}></span>}
       </span>
@@ -371,7 +362,7 @@ function VerdictButton({ id, current, onSelect, label, tone }) {
 }
 
 // ===== ADMIN: ALERT =====
-function AdminAlert() {
+export function AdminAlert() {
   const [sev, setSev] = React.useState("all");
   const sevFilters = [
     { id:"all", label:"全部", count: MOCK.alerts.length },
@@ -452,7 +443,7 @@ function SeverityTag({ sev }) {
 }
 
 // ===== ADMIN: PROFILE =====
-function AdminProfile({ user }) {
+export function AdminProfile({ user }) {
   // user 是後端回的 UserInfo;admin 版有 admin_role 但沒 reliability_score。
   // 其他顯示用欄位(stats / history)還沒對應 API,先用 MOCK 補。
   const a = {
@@ -531,5 +522,3 @@ function AdminProfile({ user }) {
     </div>
   );
 }
-
-Object.assign(window, { AdminReview, ReviewDetail, AdminAlert, AdminProfile });

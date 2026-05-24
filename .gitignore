@@ -24,6 +24,6 @@ env/
 Thumbs.db
 desktop.ini
 
-.claude
-CLAUDE.md.claude/
+# Claude Code 個人設定與專案規範(各自本機決定要不要寫)
+.claude/
 CLAUDE.md

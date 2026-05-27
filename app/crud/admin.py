@@ -104,4 +104,4 @@ def get_review_queue_counts(db: Connection) -> dict:
     """佇列各狀態的計數,給前端篩選 chip 顯示用。"""
     pending = db.execute(text(f"SELECT COUNT(*) FROM ({_QUEUE_REPORTS_SQL}) q")).scalar() or 0
     appealing = db.execute(text(f"SELECT COUNT(*) FROM ({_QUEUE_APPEALS_SQL}) q")).scalar() or 0
-    return
+    return {"pending": pending, "appealing": appealing}

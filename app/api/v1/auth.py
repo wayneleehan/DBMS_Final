@@ -5,7 +5,7 @@ Cookie session 機制由 starlette.middleware.sessions.SessionMiddleware 處理
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.orm import Session
+from sqlalchemy import Connection
 
 from app.core.database import get_db
 from app.schemas.auth import (
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)):
+def login(request: Request, payload: LoginRequest, db: Connection = Depends(get_db)):
     """登入。成功後在 cookie session 寫入 {role, principal_id},並回傳 UserInfo。"""
     info = auth_service.authenticate(db, payload.role, payload.email, payload.password)
     if info is None:
@@ -42,7 +42,7 @@ def logout(request: Request):
 
 
 @router.get("/me", response_model=UserInfo)
-def get_me(request: Request, db: Session = Depends(get_db)):
+def get_me(request: Request, db: Connection = Depends(get_db)):
     """回傳目前登入者的 UserInfo(用 session 還原)。沒登入回 401。"""
     role = request.session.get("role")
     principal_id = request.session.get("principal_id")
@@ -58,7 +58,7 @@ def get_me(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/register", response_model=LoginResponse, status_code=201)
-def register(request: Request, payload: RegisterRequest, db: Session = Depends(get_db)):
+def register(request: Request, payload: RegisterRequest, db: Connection = Depends(get_db)):
     """註冊新使用者(不寄驗證信,直接可登入)。
     成功後自動建立 session,跟 /login 一樣回傳 UserInfo。
     """
@@ -74,11 +74,9 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
     if user_crud.get_user_by_email(db, email):
         raise HTTPException(status_code=409, detail="此 Email 已被註冊")
 
-    pwd_hash = auth_service.hash_password(payload.password)
-    user_id = user_crud.create_user(db, email=email, name=name, password_hash=pwd_hash)
-
-    new_user = user_crud.get_user_by_id(db, user_id)
-    info = auth_service._user_to_info(new_user)  # noqa: SLF001 (內部 helper,刻意呼叫)
+    user_id, info = auth_service.register_user(
+        db, email=email, name=name, password=payload.password
+    )
 
     # 註冊完直接登入
     request.session["role"] = "user"

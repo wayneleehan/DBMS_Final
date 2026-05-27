@@ -42,14 +42,14 @@ def create_report(
             "ts": reported_at or datetime.now(),
         },
     )
-    db.commit()
+    # 交易控制由呼叫端負責 commit。
     return result.lastrowid
 
 def count_recent_reports_by_user(db: Connection, user_id: int, site_id: int, hours: int = 1):
 
     time_threshold = datetime.now() - timedelta(hours=hours)
     sql = text("""
-        SELECT COUNT(*) FROM report
+        SELECT COUNT(*) FROM Report
         WHERE User_ID = :u_id AND Site_ID = :s_id AND Timestamp > :time
     """)
     result = db.execute(sql, {"u_id": user_id, "s_id": site_id, "time": time_threshold})

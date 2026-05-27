@@ -49,16 +49,16 @@ DBMS 期末專案。當使用者瀏覽新網站時，瀏覽器擴充套件會即
 
 ### 技術棧
 
-| 類別         | 技術                                                        |
-| ------------ | ----------------------------------------------------------- |
-| 語言         | Python 3.13                                                 |
-| Web 框架     | FastAPI 0.136                                               |
-| DB 驅動      | SQLAlchemy 2.0 + PyMySQL                                    |
-| 資料驗證     | Pydantic 2 / pydantic-settings                              |
-| 評分管線輔助 | requests + beautifulsoup4(網頁爬蟲)、python-whois(網域年齡) |
-| 資料庫       | MySQL 8.x（本機 / AWS RDS）                                 |
-| 套件管理     | uv                                                          |
-| 推薦 GUI     | TablePlus                                                   |
+| 類別             | 技術                                                        |
+| ---------------- | ----------------------------------------------------------- |
+| 語言             | Python 3.13                                                 |
+| Web 框架         | FastAPI 0.136                                               |
+| DB 驅動 / 連線池 | SQLAlchemy 2.0 Core(無 ORM)+ PyMySQL                        |
+| 資料驗證         | Pydantic 2 / pydantic-settings                              |
+| 評分管線輔助     | requests + beautifulsoup4(網頁爬蟲)、python-whois(網域年齡) |
+| 資料庫           | MySQL 8.x（本機 / AWS RDS）                                 |
+| 套件管理         | uv                                                          |
+| 推薦 GUI         | TablePlus                                                   |
 
 ---
 
@@ -145,8 +145,9 @@ DBMS_Final/
 │   ├── core/                # 核心設定（DB 連線引擎 / 環境變數）
 │   ├── crud/                # 原生 SQL 指令，按資料表分檔
 │   ├── schemas/             # Pydantic 資料格式驗證
-│   ├── services/            # 業務邏輯層（複雜運算）               # API 路由定義（Endpoints）
-│   └── api/                 # API 路由定義（Endpoints）
+│   ├── services/            # 業務邏輯層（複雜運算）
+│   ├── api/                 # API 路由定義（Endpoints）
+│   └── utils/               # 共用工具（爬蟲、whois 等）
 ├── database/
 │   ├── createDB.sql         # 建表
 │   ├── 2mockData.sql        # 測試資料

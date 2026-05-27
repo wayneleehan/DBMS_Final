@@ -1,5 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy import Connection
 
 from app.core.database import get_db
 from app.schemas.visit import VisitCreate, VisitResponse
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/v1", tags=["visits"])
 def create_visit(
     payload: VisitCreate,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: Connection = Depends(get_db),
 ):
     return check_visit(
         db,

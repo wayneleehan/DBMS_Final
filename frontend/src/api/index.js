@@ -1,24 +1,6 @@
-const API_BASE = "/api/v1";  // 用相對路徑走 Vite proxy
+import { apiFetch } from "./client";
 
-async function apiFetch(path, options = {}) {
-    const res = await fetch(API_BASE + path, {
-        ...options,
-        credentials: "include",
-        headers: {
-            "Content-Type": "application/json",
-            ...(options.headers || {}),
-        },
-    });
-    if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        const msg = body.detail || `HTTP ${res.status}`;
-        const err = new Error(msg);
-        err.status = res.status;
-        throw err;
-    }
-    const text = await res.text();
-    return text ? JSON.parse(text) : null;
-}
+export { apiFetch };
 
 export const API = {
     login: (role, email, password) =>

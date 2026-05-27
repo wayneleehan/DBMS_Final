@@ -1,14 +1,20 @@
 const API_BASE = "/api/v1";  // 用相對路徑走 Vite proxy
 
 async function apiFetch(path, options = {}) {
+    const isFormData = options.body instanceof FormData;
+    const headers = { ...(options.headers || {}) };
+
+    // 只有在不是 FormData 時，才預設加上 application/json
+    if (!isFormData && !headers["Content-Type"]) {
+        headers["Content-Type"] = "application/json";
+    }
+
     const res = await fetch(API_BASE + path, {
         ...options,
         credentials: "include",
-        headers: {
-            "Content-Type": "application/json",
-            ...(options.headers || {}),
-        },
+        headers,
     });
+    
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         const msg = body.detail || `HTTP ${res.status}`;
@@ -31,8 +37,29 @@ export const API = {
         apiFetch("/reports", { method: "POST", body: JSON.stringify({ url, category, reason }) }),
     getMyReports: (limit = 20) => apiFetch(`/users/me/reports?limit=${limit}`),
     getMyStats: () => apiFetch("/users/me/stats"),
-    submitAppeal: ({ report_id, reason, parent_appeal_id }) =>
-        apiFetch("/appeals/", { method: "POST", body: JSON.stringify({ report_id, reason, parent_appeal_id: parent_appeal_id || null }) }),
+    /*submitAppeal: ({ report_id, reason, parent_appeal_id }) =>
+        apiFetch("/appeals/", { method: "POST", body: JSON.stringify({ report_id, reason, parent_appeal_id: parent_appeal_id || null }) })*/
+    submitAppeal: ({ report_id, reason, parent_appeal_id, files }) => {
+        const formData = new FormData();
+        formData.append("report_id", report_id);
+        formData.append("reason", reason);
+    
+        if (parent_appeal_id) {
+            formData.append("parent_appeal_id", parent_appeal_id);
+        }
+    
+        if (files && files.length > 0) {
+            files.forEach((file) => formData.append("files", file));
+        }
+
+    // 沿用原本apiFetch
+    // 若 apiFetch 內部有強制設定 'Content-Type': 'application/json'，
+    // 需要在 apiFetch 內部加判斷，當 body 是 FormData 時不要設定 Content-Type。
+        return apiFetch("/appeals/", { 
+            method: "POST", 
+            body: formData 
+        });
+    },
     getReviewQueue: (status, limit = 50) => {
         const params = new URLSearchParams();
         if (status) params.set("status", status);

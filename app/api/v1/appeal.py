@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas.appeal import AppealCreateRequest, AppealResponse
 from app.services import appeal as appeal_service
+
 
 router = APIRouter(prefix="/api/v1/appeals", tags=["Appeals System (申訴系統)"])
 
@@ -29,7 +31,14 @@ def get_appeals(db: Session = Depends(get_db)):
     return [dict(row) for row in rows]
 
 @router.post("/", response_model=AppealResponse)
-def submit_appeal(request: AppealCreateRequest, db: Session = Depends(get_db)):
+async def submit_appeal(
+    report_id: int = Form(...),
+    reason: str = Form(...),
+    parent_appeal_id: Optional[int] = Form(None),
+    contact_info: Optional[str] = Form(None),
+    files: Optional[List[UploadFile]] = File(None), # 用 UploadFile 接收二進位檔案
+    db: Session = Depends(get_db)
+    ):
     """
     使用者提交申訴或再申訴。
     若為初次申訴，不需帶入 parent_appeal_id。
@@ -37,10 +46,18 @@ def submit_appeal(request: AppealCreateRequest, db: Session = Depends(get_db)):
     """
     try:
         # 呼叫 Service 處理邏輯
-        result = appeal_service.process_appeal_submission(db, request)
+        request_data = AppealCreateRequest(
+            report_id=report_id,
+            reason=reason,
+            parent_appeal_id=parent_appeal_id,
+            contact_info=contact_info
+        )
+         
+        result =await appeal_service.process_appeal_submission(db, request_data,files)
         return AppealResponse(**result)
     
+    except HTTPException:
+        raise
     except Exception as e:
-        # 發生任何錯誤時執行 Rollback 回滾，防止產生孤兒資料
         db.rollback()
         raise HTTPException(status_code=500, detail=f"提交申訴失敗，伺服器發生錯誤: {str(e)}")

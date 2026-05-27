@@ -16,7 +16,6 @@ from app.crud.report import create_report
 from app.crud.website import get_website_by_url
 from app.services.scoring import run_scoring_pipeline
 
-
 def handle_report(
     db: Session,
     user_id: int,
@@ -27,11 +26,13 @@ def handle_report(
     category: str | None = None,
     reason: str | None = None,
 ) -> dict:
+    
     """處理一次使用者通報,回傳給 API 層的結構。
     user_id 由 API 層從 session 帶入,service 不負責驗證身分。
     """
     timestamp = reported_at or datetime.now()
 
+    
     existing = get_website_by_url(db, url)
     if existing:
         site_id = existing["Site_ID"]
@@ -54,11 +55,12 @@ def handle_report(
         category=category,
         reason=reason,
     )
+    
 
     tag = "new (scored)" if is_new else "cached"
     ip_log = f" ip={ip_address}" if ip_address else ""
     print(
-        f"📝 Report ({tag}): user={user_id} {url}{ip_log} → {status}/{risk_score} @ {timestamp.isoformat()}"
+        f"Report ({tag}): user={user_id} {url}{ip_log} → {status}/{risk_score} @ {timestamp.isoformat()}"
     )
     return {
         "url": url,

@@ -13,6 +13,7 @@ def update_website_status_and_score(db: Connection, site_id: int, status: str, s
     管理員裁決後,更新特定網站的狀態與風險值。
     - 申訴通過 (Approved):退回 'Safe',分數歸零。
     - 申訴駁回 (Rejected):維持 'Blocked' 等狀態。
+    交易控制由呼叫端負責 commit。
     """
     query = text("""
         UPDATE WEBSITE
@@ -20,7 +21,6 @@ def update_website_status_and_score(db: Connection, site_id: int, status: str, s
         WHERE Site_ID = :site_id
     """)
     db.execute(query, {"site_id": site_id, "status": status, "score": score})
-    db.commit()
 
 
 def get_ip_block_stats(db: Connection, ip_address: str) -> dict:
@@ -40,7 +40,7 @@ def get_ip_block_stats(db: Connection, ip_address: str) -> dict:
 
 def batch_increase_risk_score_by_ip(db: Connection, ip_address: str, score_increment: float):
     """
-    批量更新該 IP 下所有未封鎖網址的 Risk_Score
+    批量更新該 IP 下所有未封鎖網址的 Risk_Score。交易控制由呼叫端負責 commit。
     """
     query = text("""
         UPDATE WEBSITE
@@ -49,12 +49,12 @@ def batch_increase_risk_score_by_ip(db: Connection, ip_address: str, score_incre
         WHERE IP_Address = :ip_address AND Status != 'Blocked'
     """)
     db.execute(query, {"ip_address": ip_address, "increment": score_increment})
-    db.commit()
 
 
 def force_manual_review(db: Connection, site_id: int):
     """
-    暫停自動封鎖功能,強制轉入人工審核流程 (將狀態設為 Warning)
+    暫停自動封鎖功能,強制轉入人工審核流程 (將狀態設為 Warning)。
+    交易控制由呼叫端負責 commit。
     """
     query = text("""
         UPDATE WEBSITE
@@ -62,7 +62,6 @@ def force_manual_review(db: Connection, site_id: int):
         WHERE Site_ID = :site_id AND Status != 'Blocked'
     """)
     db.execute(query, {"site_id": site_id})
-    db.commit()
 
 
 def create_website(
@@ -84,23 +83,30 @@ def create_website(
         """),
         {"url": url, "ip": ip, "status": status, "score": risk_score},
     )
-    db.commit()
+    # 交易控制由呼叫端負責 commit。
     return result.lastrowid
 
 
 def update_website_score(db: Connection, site_id: int, score: float, status: str):
+    """交易控制由呼叫端負責 commit。"""
     sql = text("""
         UPDATE WEBSITE
         SET Risk_Score = :score, Status = :status
         WHERE Site_ID = :site_id
     """)
     db.execute(sql, {"score": score, "status": status, "site_id": site_id})
-    db.commit()
 
 
 def get_website_by_url(db: Connection, url: str):
     sql = text("SELECT Site_ID, URL, IP_Address, Status, Risk_Score FROM website WHERE URL = :url")
     return db.execute(sql, {"url": url}).mappings().first()
+
+
+def get_all_websites(db: Connection) -> list[dict]:
+    """取得所有 WEBSITE 紀錄,給 GET /api/v1/websites/ 用。"""
+    sql = text("SELECT Site_ID, URL, IP_Address, Status, Risk_Score FROM WEBSITE")
+    rows = db.execute(sql).mappings().all()
+    return [dict(row) for row in rows]
 
 
 # ------------------------------------------------------------------

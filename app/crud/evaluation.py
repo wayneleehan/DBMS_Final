@@ -1,12 +1,12 @@
 from sqlalchemy import text, Connection
 
 def create_evaluation(db: Connection, site_id: int, pattern_id: int):
+    """交易控制由呼叫端負責 commit。"""
     sql = text("""
-        INSERT INTO evaluation (Site_ID, Pattern_ID) 
+        INSERT INTO evaluation (Site_ID, Pattern_ID)
         VALUES (:site_id, :pattern_id)
     """)
     db.execute(sql, {"site_id": site_id, "pattern_id": pattern_id})
-    db.commit()
 
 def check_evaluation_exists(db: Connection, site_id: int, pattern_id: int):
     sql = text("""

@@ -42,7 +42,7 @@ def create_report(
             "ts": reported_at or datetime.now(),
         },
     )
-    db.commit()
+    # 交易控制由呼叫端負責 commit。
     return result.lastrowid
 
 def count_recent_reports_by_user(db: Connection, user_id: int, site_id: int, hours: int = 1):

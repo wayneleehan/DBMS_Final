@@ -50,11 +50,39 @@ async function checkVisit(tabId, url) {
     console.log(` [${data.status}] score=${data.risk_score} (${tag}) ip=${ip ?? "?"} → ${url}`);
 
     updateBadge(tabId, data.status);
+    const payload = { ...data, ip, checked_at: Date.now() };
+    storeTabStatus(tabId, payload);
+    pushToContentScript(tabId, payload);
     maybeNotify(data);
   } catch (err) {
     console.error(` Network error for ${url}:`, err);
   }
 }
+
+// popup.js 跟 content.js 都讀這份 storage 取得當前分頁狀態。
+// 用 session 是因為瀏覽器關掉就該清掉,不需要跨 session 保留。
+function storeTabStatus(tabId, payload) {
+  chrome.storage.session.set({ [`tab:${tabId}`]: payload });
+}
+
+// 主動把最新狀態推到頁面內的 content script,讓浮動卡片即時更新。
+// content script 還沒載完(或頁面不允許注入)時 sendMessage 會 reject,直接吞掉。
+function pushToContentScript(tabId, payload) {
+  chrome.tabs.sendMessage(tabId, { type: "STATUS_UPDATE", data: payload }).catch(() => {});
+}
+
+// content script 載入時會主動來要一次當前狀態(處理「先有 response 才有 script」的 race)
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === "GET_STATUS" && sender.tab) {
+    const key = `tab:${sender.tab.id}`;
+    chrome.storage.session.get(key).then((obj) => sendResponse({ data: obj[key] ?? null }));
+    return true;  // 告訴 chrome.runtime 我們會非同步呼叫 sendResponse
+  }
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  chrome.storage.session.remove(`tab:${tabId}`);
+});
 
 // 把徽章貼到「該分頁」的工具列圖示;不同分頁互不干擾
 function updateBadge(tabId, status) {

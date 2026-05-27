@@ -41,7 +41,7 @@ async function checkVisit(tabId, url) {
     });
 
     if (!res.ok) {
-      console.error(` Backend rejected (${res.status}): ${url}`);
+      console.error(`Backend rejected (${res.status}): ${url}`);
       return;
     }
 

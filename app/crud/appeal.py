@@ -16,8 +16,8 @@ def create_appeal(db: Connection, report_id: int, reason: str, evidence_link: Op
         "parent_appeal_id": parent_appeal_id,
         "evidence_link": evidence_link
     })
-    db.commit()
-    
+    # 交易控制由呼叫端負責 commit。
+
     # 回傳剛新增成功的那一筆 Appeal_ID
     return result.lastrowid
 
@@ -49,3 +49,22 @@ def update_appeal_status(db: Connection, appeal_id: int, status: str):
     """
     query = text("UPDATE APPEAL SET Status = :status WHERE Appeal_ID = :appeal_id")
     db.execute(query, {"status": status, "appeal_id": appeal_id})
+
+
+def get_pending_appeals_with_website(db: Connection) -> list[dict]:
+    """取得所有 Pending 申訴 + 對應網站資訊,給 GET /api/v1/appeals/ 用。"""
+    query = text("""
+        SELECT
+            A.Appeal_ID,
+            A.Reason,
+            A.Status,
+            W.URL,
+            W.Risk_Score,
+            W.Status as Website_Status
+        FROM APPEAL A
+        JOIN Report R ON A.Report_ID = R.Report_ID
+        JOIN WEBSITE W ON R.Site_ID = W.Site_ID
+        WHERE A.Status = 'Pending'
+    """)
+    rows = db.execute(query).mappings().all()
+    return [dict(row) for row in rows]

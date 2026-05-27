@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy import Connection
 
 from app.api.deps import require_admin
 from app.core.database import get_db
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api/v1/admin", tags=["Admin Adjudication (管理員�
 def get_review_queue(
     status: str | None = Query(None, description="篩選:'待審核' / '申訴中' / 不帶=全部"),
     limit: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db),
+    db: Connection = Depends(get_db),
     _admin: dict = Depends(require_admin),
 ):
     """審核佇列:UNION 待審核的 Report + 進行中的 Appeal。需管理員。"""
@@ -30,7 +30,7 @@ def get_review_queue(
 
 @router.get("/queue/counts", response_model=ReviewQueueCounts)
 def get_review_queue_counts(
-    db: Session = Depends(get_db),
+    db: Connection = Depends(get_db),
     _admin: dict = Depends(require_admin),
 ):
     """佇列各狀態計數,給 UI 篩選 chip 顯示用。"""
@@ -40,7 +40,7 @@ def get_review_queue_counts(
 @router.post("/review", response_model=AdminReviewResponse)
 def submit_admin_review(
     request: AdminReviewRequest,
-    db: Session = Depends(get_db),
+    db: Connection = Depends(get_db),
     admin: dict = Depends(require_admin),
 ):
     """管理員送出對申訴案件的裁決結果。需管理員登入。
@@ -59,7 +59,7 @@ def submit_admin_review(
 @router.post("/report-verdict", response_model=ReportVerdictResponse)
 def submit_report_verdict(
     request: ReportVerdictRequest,
-    db: Session = Depends(get_db),
+    db: Connection = Depends(get_db),
     admin: dict = Depends(require_admin),
 ):
     """管理員對「舉報案件」直接裁決(不經申訴流程)。需管理員登入。

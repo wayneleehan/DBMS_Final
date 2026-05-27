@@ -10,17 +10,20 @@
         只有未知 URL 才付出完整評分的代價(DNS、爬蟲、WHOIS)。
 """
 
+import logging
 from datetime import datetime
 
 from fastapi import BackgroundTasks
-from sqlalchemy.orm import Session
+from sqlalchemy import Connection
 
 from app.crud.website import get_website_by_url
 from app.services.scoring import run_scoring_pipeline
 
+logger = logging.getLogger(__name__)
+
 
 def check_visit(
-    db: Session,
+    db: Connection,
     url: str,
     visited_at: datetime | None,
     background_tasks: BackgroundTasks,
@@ -49,5 +52,8 @@ def check_visit(
         tag = "new (scored)"
 
     ip_log = f" ip={ip_address}" if ip_address else ""
-    print(f"Visit ({tag}): {url}{ip_log} → {result['status']}/{result['risk_score']} @ {timestamp.isoformat()}")
+    logger.info(
+        "Visit (%s): %s%s → %s/%s @ %s",
+        tag, url, ip_log, result["status"], result["risk_score"], timestamp.isoformat(),
+    )
     return result

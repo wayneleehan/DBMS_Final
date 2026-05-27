@@ -51,7 +51,7 @@ DBMS 期末專案。當使用者瀏覽新網站時，瀏覽器擴充套件會即
 |---|---|
 | 語言 | Python 3.13 |
 | Web 框架 | FastAPI 0.136 |
-| ORM / DB 驅動 | SQLAlchemy 2.0 + PyMySQL |
+| DB 驅動 / 連線池 | SQLAlchemy 2.0 Core(無 ORM)+ PyMySQL |
 | 資料驗證 | Pydantic 2 / pydantic-settings |
 | 評分管線輔助 | requests + beautifulsoup4(網頁爬蟲)、python-whois(網域年齡) |
 | 資料庫 | MySQL 8.x（本機 / AWS RDS） |
@@ -141,7 +141,7 @@ DBMS_Final/
 │   ├── schemas/             # Pydantic 資料格式驗證
 │   ├── services/            # 業務邏輯層（複雜運算）
 │   ├── api/                 # API 路由定義（Endpoints）
-│   └── models/              # 暫保留，目前未使用 ORM
+│   └── utils/               # 共用工具（爬蟲、whois 等）
 ├── database/
 │   ├── createDB.sql         # 建表
 │   ├── 2mockData.sql        # 測試資料

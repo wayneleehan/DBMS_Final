@@ -30,11 +30,13 @@ def handle_report(
     category: str | None = None,
     reason: str | None = None,
 ) -> dict:
+    
     """處理一次使用者通報,回傳給 API 層的結構。
     user_id 由 API 層從 session 帶入,service 不負責驗證身分。
     """
     timestamp = reported_at or datetime.now()
 
+    
     existing = get_website_by_url(db, url)
     if existing:
         site_id = existing["Site_ID"]

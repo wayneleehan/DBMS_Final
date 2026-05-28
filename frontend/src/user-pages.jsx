@@ -588,7 +588,7 @@ function ReportForm({ onSubmit }) {
                 <div className="field" style={{ marginBottom: 0 }}>
                     <label>證據 <span style={{ fontSize: 11, color: "var(--text-3)" }}>(選填)</span></label>
                     <DropZone files={files} setFiles={setFiles} />
-                    <div className="hint">支援 PNG / JPG / PDF · 單檔最大 10MB</div>
+                    <div className="hint">支援 PNG / JPG · 單檔最大 10MB</div>
                 </div>
             </div>
             {submitErr && (
@@ -635,13 +635,32 @@ function AppealForm({ onSubmit }) {
 
     const ok = selectedReport && reason.trim().length > 0 && !submitting;
 
-    async function submit() {
+    /*async function submit() {
         if (!selectedReport) { setSubmitErr("請從下方選擇要申訴的通報"); return; }
         if (!reason.trim()) { setSubmitErr("請填寫申訴原因"); return; }
         setSubmitErr(null);
         setSubmitting(true);
         try {
             const result = await API.submitAppeal({ report_id: selectedReport.report_id, reason: reason.trim() });
+            onSubmit(result);
+        } catch (e) {
+            setSubmitErr(e.status === 401 ? "登入狀態已失效,請重新登入" : (e.message || "送出失敗"));
+        } finally {
+            setSubmitting(false);
+        }
+    }*/
+
+    async function submit() {
+        if (!selectedReport) { setSubmitErr("請從下方選擇要申訴的通報"); return; }
+        if (!reason.trim()) { setSubmitErr("請填寫申訴原因"); return; }
+        setSubmitErr(null);
+        setSubmitting(true);
+        try {
+            const result = await API.submitAppeal({ 
+                report_id: selectedReport.report_id, 
+                reason: reason.trim(),
+                files: files 
+            });
             onSubmit(result);
         } catch (e) {
             setSubmitErr(e.status === 401 ? "登入狀態已失效,請重新登入" : (e.message || "送出失敗"));
@@ -722,7 +741,7 @@ function AppealForm({ onSubmit }) {
                     <textarea className="textarea" rows="5" value={reason} onChange={(e) => setReason(e.target.value)}
                         placeholder="請說明為何判定結果有誤,並提供支持你論點的事實。"></textarea>
                     <div style={{ marginTop: 10 }}><DropZone files={files} setFiles={setFiles} /></div>
-                    <div className="hint">補充證據檔可加快審核(目前僅 UI 顯示,尚未上傳到伺服器)</div>
+                    <div className="hint">補充證據檔可加快審核</div>
                 </div>
             </div>
 
@@ -743,15 +762,37 @@ function AppealForm({ onSubmit }) {
 
 function DropZone({ files, setFiles }) {
     const [drag, setDrag] = React.useState(false);
+    const fileInputRef = React.useRef(null);
+
+    const handleFiles = (newFiles) => {
+        if (!newFiles) return;
+        setFiles(prev => [...prev, ...Array.from(newFiles)]);
+    };
+
     return (
-        <div onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
-            onDrop={(e) => { e.preventDefault(); setDrag(false); setFiles([...files, ...Array.from(e.dataTransfer.files).map((f) => f.name)]); }}
-            style={{ border: "1.5px dashed " + (drag ? "var(--orange)" : "var(--border-strong)"), background: drag ? "var(--orange-light)" : "var(--bg-soft)", borderRadius: 10, padding: "22px 16px", textAlign: "center", color: "var(--text-3)", fontSize: 13, transition: "all .15s" }}>
-            <div style={{ display: "grid", placeItems: "center", margin: "0 auto 8px", width: 36, height: 36, borderRadius: 8, background: "#fff", border: "1px solid var(--border)", color: "var(--text-2)" }}>{I.upload}</div>
-            <div>拖曳檔案到此 · 或 <span style={{ color: "var(--orange)", fontWeight: 500, cursor: "pointer" }}>點此選擇</span></div>
+        <div 
+            onDragOver={(e) => { e.preventDefault(); setDrag(true); }} 
+            onDragLeave={() => setDrag(false)}
+            onDrop={(e) => { e.preventDefault(); setDrag(false); handleFiles(e.dataTransfer.files); }}
+            style={{ border: "1.5px dashed " + (drag ? "var(--orange)" : "var(--border-strong)"), background: drag ? "var(--orange-light)" : "var(--bg-soft)", borderRadius: 10, padding: "22px 16px", textAlign: "center", color: "var(--text-3)", fontSize: 13, transition: "all .15s" }}
+        >
+            <div style={{ display: "grid", placeItems: "center", margin: "0 auto 8px", width: 36, height: 36, borderRadius: 8, background: "#fff", border: "1px solid var(--border)", color: "var(--text-2)" }}>
+                {I.upload}
+            </div>
+            <div>
+                拖曳檔案到此 · 或 <span onClick={() => fileInputRef.current.click()} style={{ color: "var(--orange)", fontWeight: 500, cursor: "pointer" }}>點此選擇</span>
+            </div>
+            <input 
+                type="file" 
+                multiple 
+                accept="image/*"
+                ref={fileInputRef} 
+                style={{ display: "none" }} 
+                onChange={(e) => handleFiles(e.target.files)} 
+            />
             {files.length > 0 && (
                 <div className="row" style={{ gap: 6, marginTop: 12, justifyContent: "center", flexWrap: "wrap" }}>
-                    {files.map((f, i) => <span key={i} className="muted-tag">{f}</span>)}
+                    {files.map((f, i) => <span key={i} className="muted-tag">{f.name}</span>)}
                 </div>
             )}
         </div>

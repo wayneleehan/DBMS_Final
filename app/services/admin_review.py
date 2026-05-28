@@ -4,6 +4,7 @@ from app.crud import report as report_crud
 from app.schemas.admin_review import AdminReviewRequest, ReportVerdictRequest
 import json
 from app.services.reputation_service import process_appeal_impact
+from sqlalchemy import text
 
 
 # verdict 字串 → (WEBSITE.Status, Risk_Score, 通報者信譽 delta)
@@ -55,6 +56,7 @@ def process_report_verdict(
             action_type="REVIEW_REPORT",
             old_data={"website_status": old_status, "risk_score": old_score},
             new_data={
+                "site_id": site_id,
                 "website_status": new_status,
                 "risk_score": new_score,
                 "verdict": request.verdict,
@@ -62,7 +64,9 @@ def process_report_verdict(
                 "reporter_reputation_delta": reputation_delta,
             },
         )
-
+        
+        db.execute(text("UPDATE Report SET Status = 'Reviewed' WHERE Report_ID = :id"), {"id": request.report_id})
+         
         db.commit()
         return {
             "status": "success",
@@ -121,7 +125,7 @@ def process_admin_adjudication(db: Connection, admin_id: int, request: AdminRevi
                 "score_impact": "Processed by appeal_impact logic"
             }
         )
-
+        
         # 6. 確保資料一致性,提交 Transaction
         db.commit()
         return {"status": "success", "message": "裁決已成功送出,分數與網站狀態已同步更新。"}

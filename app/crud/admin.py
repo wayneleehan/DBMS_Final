@@ -6,8 +6,8 @@ def get_admin_by_email(db: Connection, email: str) -> dict | None:
     """
     row = db.execute(
         text("""
-            SELECT Admin_ID, Name, Role
-            FROM ADMIN WHERE Name = :email
+            SELECT Admin_ID, Email, Name, Role, Password_Hash, Created_At
+            FROM `ADMIN` WHERE Email = :email
         """),
         {"email": email},
     ).mappings().first()
@@ -18,8 +18,8 @@ def get_admin_by_id(db: Connection, admin_id: int) -> dict | None:
     """依 ID 查管理員(不含 Password_Hash,給 session 還原 admin info 用)。"""
     row = db.execute(
         text("""
-            SELECT Admin_ID, Name, Role
-            FROM ADMIN WHERE Admin_ID = :admin_id
+           SELECT Admin_ID, Email, Name, Role, Password_Hash, Created_At
+            FROM `ADMIN` WHERE Admin_ID = :admin_id
         """),
         {"admin_id": admin_id},
     ).mappings().first()
@@ -45,12 +45,13 @@ _QUEUE_REPORTS_SQL = """
         r.Reason                                 AS reason,
         r.Timestamp                              AS submitted_at,
         u.User_ID                                AS submitter_id,
-        u.Name                                   AS submitter_name,
+        COALESCE(u.Name, '未知使用者')            AS submitter_name,
         u.Reliability_Score                      AS submitter_reputation
     FROM Report r
     JOIN WEBSITE w ON r.Site_ID = w.Site_ID
     JOIN USERS u   ON r.User_ID = u.User_ID
     WHERE w.Status IN ('Safe', 'Low_Risk', 'Warning')
+      AND r.Status = 'Pending' 
       AND NOT EXISTS (SELECT 1 FROM APPEAL a WHERE a.Report_ID = r.Report_ID)
 """
 
@@ -67,7 +68,7 @@ _QUEUE_APPEALS_SQL = """
         a.Reason                                 AS reason,
         r.Timestamp                              AS submitted_at,
         u.User_ID                                AS submitter_id,
-        u.Name                                   AS submitter_name,
+        COALESCE(u.Name, '未知使用者')            AS submitter_name,
         u.Reliability_Score                      AS submitter_reputation
     FROM APPEAL a
     JOIN Report r  ON a.Report_ID = r.Report_ID

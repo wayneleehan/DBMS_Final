@@ -33,12 +33,23 @@ export const API = {
         apiFetch("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password }) }),
     logout: () => apiFetch("/auth/logout", { method: "POST" }),
     me: () => apiFetch("/auth/me"),
-    submitReport: ({ url, category, reason }) =>
-        apiFetch("/reports", { method: "POST", body: JSON.stringify({ url, category, reason }) }),
+    submitReport: ({ url, category, reason, files }) => {
+        const formData = new FormData();
+        formData.append("url", url);
+        if (category) formData.append("category", category);
+        if (reason) formData.append("reason", reason);
+
+        if (files && files.length > 0) {
+            files.forEach((file) => formData.append("files", file));
+        }
+
+        return apiFetch("/reports", { 
+            method: "POST", 
+            body: formData 
+        });
+    },
     getMyReports: (limit = 20) => apiFetch(`/users/me/reports?limit=${limit}`),
     getMyStats: () => apiFetch("/users/me/stats"),
-    /*submitAppeal: ({ report_id, reason, parent_appeal_id }) =>
-        apiFetch("/appeals/", { method: "POST", body: JSON.stringify({ report_id, reason, parent_appeal_id: parent_appeal_id || null }) })*/
     submitAppeal: ({ report_id, reason, parent_appeal_id, files }) => {
         const formData = new FormData();
         formData.append("report_id", report_id);

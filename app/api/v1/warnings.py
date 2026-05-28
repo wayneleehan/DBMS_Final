@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import Connection
 
 from app.api.deps import require_admin
@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.schemas.early_warning import CIBMonitorRequest, ClusterMonitorRequest, WarningResponse
 from app.services import early_warning
 from sqlalchemy import text
-from fastapi import Query
+
 
 router = APIRouter(prefix="/api/v1/warnings", tags=["Early Warning System"])
 

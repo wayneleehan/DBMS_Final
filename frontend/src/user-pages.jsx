@@ -550,7 +550,7 @@ function ReportForm({ onSubmit }) {
         try {
             // 補上 https:// 讓 backend 跟 extension 的格式一致(extension 也送完整 URL)
             const fullUrl = "https://" + url.trim();
-            const result = await API.submitReport({ url: fullUrl, category: cat, reason: reason || null });
+            const result = await API.submitReport({ url: fullUrl, category: cat, reason: reason || null, files: files  });
             onSubmit(result);  // 把後端回的 {url, status, risk_score, is_new} 帶上去
         } catch (e) {
             // 401 表示 session 過期(雖然外層 App 會擋住未登入,但保險)

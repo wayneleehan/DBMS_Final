@@ -1,15 +1,12 @@
-import os
-import uuid
-import boto3
+import os, boto3, uuid
 from typing import List, Optional
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.orm import Session
 from app.crud import appeal as crud_appeal
 from app.schemas.appeal import AppealCreateRequest
-
-import os
-import boto3
 from dotenv import load_dotenv
+
+
 
 #強制載入環境變數
 load_dotenv()

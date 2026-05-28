@@ -47,7 +47,7 @@ def trigger_cluster_monitor(
 @router.get("/alerts")
 def get_alerts(
     limit: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db),
+    db: Connection = Depends(get_db),
     _admin: dict = Depends(require_admin),
 ):
     rows = db.execute(text("""

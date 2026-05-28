@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+const API_BASE = "/api/v1";
 
 async function apiFetch(path, options = {}) {
     const isFormData = options.body instanceof FormData;

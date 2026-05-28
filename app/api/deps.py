@@ -10,13 +10,13 @@
 """
 
 from fastapi import Depends, HTTPException, Request
-from sqlalchemy.orm import Session
+from sqlalchemy import Connection
 
 from app.core.database import get_db
 from app.services import auth_service
 
 
-def require_login(request: Request, db: Session = Depends(get_db)) -> dict:
+def require_login(request: Request, db: Connection = Depends(get_db)) -> dict:
     """要求請求已登入,回傳完整 UserInfo dict。
 
     未登入(沒 session)→ 401

@@ -28,7 +28,10 @@ def get_user_by_id(db: Connection, user_id: int) -> dict | None:
 
 
 def create_user(db: Connection, email: str, name: str, password_hash: str) -> int:
-    """新增一筆使用者,回傳 User_ID。Reliability_Score 走 schema 預設(100)。"""
+    """新增一筆使用者,回傳 User_ID。Reliability_Score 走 schema 預設(100)。
+
+    交易控制由呼叫端(service / api)負責 commit。
+    """
     result = db.execute(
         text("""
             INSERT INTO USERS (Email, Password_Hash)
@@ -36,29 +39,27 @@ def create_user(db: Connection, email: str, name: str, password_hash: str) -> in
         """),
         {"email": email, "pwd_hash": password_hash},
     )
-    db.commit()
     return result.lastrowid
 
 
 def deduct_reliability_score(db: Connection, user_id: int, deduct_points: float = 30.0):
     """
     若判定為「無理取鬧」，加重扣除使用者的信譽分。
+    交易控制由呼叫端負責 commit。
     """
     query = text("""
-        UPDATE USERS 
+        UPDATE USERS
         SET Reliability_Score = GREATEST(Reliability_Score - :deduct_points, 0)
         WHERE User_ID = :user_id
     """)
     db.execute(query, {"user_id": user_id, "deduct_points": deduct_points})
-    db.commit()
 
 
 def update_reliability_score(db: Connection, user_id: int, delta: float):
-    
+    """交易控制由呼叫端負責 commit。"""
     sql = text("""
-        UPDATE USERS  
+        UPDATE USERS
         SET Reliability_Score = LEAST(100, GREATEST(0, Reliability_Score + :delta))
         WHERE User_ID = :user_id
     """)
     db.execute(sql, {"delta": delta, "user_id": user_id})
-    db.commit()

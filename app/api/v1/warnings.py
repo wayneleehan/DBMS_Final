@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy import Connection
 
 from app.api.deps import require_admin
 from app.core.database import get_db
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/v1/warnings", tags=["Early Warning System"])
 @router.post("/cib", response_model=WarningResponse)
 def trigger_cib_monitor(
     request: CIBMonitorRequest,
-    db: Session = Depends(get_db),
+    db: Connection = Depends(get_db),
     _admin: dict = Depends(require_admin),
 ):
     """觸發協同造假防禦監控 (Monitor)。需管理員。"""
@@ -30,7 +30,7 @@ def trigger_cib_monitor(
 @router.post("/cluster", response_model=WarningResponse)
 def trigger_cluster_monitor(
     request: ClusterMonitorRequest,
-    db: Session = Depends(get_db),
+    db: Connection = Depends(get_db),
     _admin: dict = Depends(require_admin),
 ):
     """觸發機房集群預警監控 (Monitor)。需管理員。

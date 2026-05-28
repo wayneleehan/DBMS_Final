@@ -1,10 +1,10 @@
-const API_BASE = "/api/v1";  // 用相對路徑走 Vite proxy
+import { apiFetch } from "./client";
 
 async function apiFetch(path, options = {}) {
     const isFormData = options.body instanceof FormData;
     const headers = { ...(options.headers || {}) };
 
-    // 只有在不是 FormData 時，才預設加上 application/json
+    // 只有在不是FormData時，才預設加上application/json-> 避免圖片被json出現error
     if (!isFormData && !headers["Content-Type"]) {
         headers["Content-Type"] = "application/json";
     }
@@ -71,6 +71,4 @@ export const API = {
         apiFetch("/admin/review", { method: "POST", body: JSON.stringify({ appeal_id, decision, ruling_result, is_unreasonable }) }),
     submitReportVerdict: ({ report_id, verdict, note }) =>
         apiFetch("/admin/report-verdict", { method: "POST", body: JSON.stringify({ report_id, verdict, note }) }),
-    getAlerts: (limit = 50) => apiFetch(`/warnings/alerts?limit=${limit}`),
-    getAdminHistory: (limit = 6) => apiFetch(`/admin/history?limit=${limit}`),
 };

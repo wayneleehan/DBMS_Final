@@ -8,7 +8,7 @@
 """
 
 import bcrypt
-from sqlalchemy.orm import Session
+from sqlalchemy import Connection
 
 from app.crud import admin as admin_crud
 from app.crud import user as user_crud
@@ -37,7 +37,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 # 登入流程
 # ------------------------------------------------------------------
 
-def authenticate(db: Session, role: str, email: str, password: str) -> dict | None:
+def authenticate(db: Connection, role: str, email: str, password: str) -> dict | None:
     """驗證身分,回傳 UserInfo dict(已剝除 Password_Hash)。失敗回 None。"""
     email = email.strip().lower()
 
@@ -56,7 +56,7 @@ def authenticate(db: Session, role: str, email: str, password: str) -> dict | No
     return _admin_to_info(record)
 
 
-def restore_session_user(db: Session, role: str, principal_id: int) -> dict | None:
+def restore_session_user(db: Connection, role: str, principal_id: int) -> dict | None:
     """依 session 裡的 (role, id) 重新查 DB 還原 UserInfo,給 /auth/me 用。"""
     if role == "user":
         record = user_crud.get_user_by_id(db, principal_id)
@@ -93,3 +93,23 @@ def _admin_to_info(row: dict) -> dict:
         "admin_role": row.get("Role"),
         "created_at": None,
     }
+
+
+# ------------------------------------------------------------------
+# 註冊流程(新增 USERS + 回傳 UserInfo,交易由本層管理)
+# ------------------------------------------------------------------
+
+def register_user(db: Connection, email: str, name: str, password: str) -> tuple[int, dict]:
+    """新增一筆 USERS 並回傳 (user_id, UserInfo dict)。
+    Atomic transaction:任何步驟失敗就 rollback。
+    """
+    try:
+        pwd_hash = hash_password(password)
+        user_id = user_crud.create_user(db, email=email, name=name, password_hash=pwd_hash)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    new_user = user_crud.get_user_by_id(db, user_id)
+    return user_id, _user_to_info(new_user)

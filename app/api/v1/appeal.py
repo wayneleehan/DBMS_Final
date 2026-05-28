@@ -1,7 +1,9 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
 from sqlalchemy.orm import Session
+from sqlalchemy import Connection
 from app.core.database import get_db
+from app.crud import appeal as crud_appeal
 from app.schemas.appeal import AppealCreateRequest, AppealResponse
 from app.services import appeal as appeal_service
 
@@ -9,26 +11,11 @@ from app.services import appeal as appeal_service
 router = APIRouter(prefix="/api/v1/appeals", tags=["Appeals System (申訴系統)"])
 
 @router.get("/", response_model=list)
-def get_appeals(db: Session = Depends(get_db)):
+def get_appeals(db: Connection = Depends(get_db)):
     """
     取得所有待審核的申訴案件列表
     """
-    from sqlalchemy import text
-    query = text("""
-        SELECT 
-            A.Appeal_ID,
-            A.Reason,
-            A.Status,
-            W.URL,
-            W.Risk_Score,
-            W.Status as Website_Status
-        FROM APPEAL A
-        JOIN Report R ON A.Report_ID = R.Report_ID
-        JOIN WEBSITE W ON R.Site_ID = W.Site_ID
-        WHERE A.Status = 'Pending'
-    """)
-    rows = db.execute(query).mappings().all()
-    return [dict(row) for row in rows]
+    return crud_appeal.get_pending_appeals_with_website(db)
 
 @router.post("/", response_model=AppealResponse)
 async def submit_appeal(

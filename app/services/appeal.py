@@ -21,7 +21,7 @@ BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
 # 偵錯用：確保不是讀到空值
 if not BUCKET_NAME:
-    raise ValueError("❌ 錯誤：找不到環境變數 S3_BUCKET_NAME，請檢查 .env 檔案是否存在！")
+    raise ValueError("錯誤：找不到環境變數 S3_BUCKET_NAME，請檢查 .env 檔案是否存在！")
 
 s3_client = boto3.client(
     "s3",
@@ -41,6 +41,7 @@ def _rollback_s3_uploads(keys: List[str]):
 async def process_appeal_submission(db: Session, appeal_data: AppealCreateRequest, files: Optional[List[UploadFile]]) -> dict:
     """
     處理使用者提交申訴或再申訴的邏輯。
+    若任一步驟失敗,rollback 由本 service 負責,API 層只負責轉成 HTTP 錯誤。
     """
     #1 處理檔案上傳至S3
     file_urls = []
@@ -80,25 +81,35 @@ async def process_appeal_submission(db: Session, appeal_data: AppealCreateReques
                 _rollback_s3_uploads(uploaded_keys)
                 print(f"S3 Upload Error: {str(e)}") 
                 raise HTTPException(status_code=500, detail="檔案上傳至 S3 失敗")
-
-    if file_urls:
-        appeal_data.evidence_link = ",".join(file_urls)
-    # 2. 檢查 Report_ID 是否真的存在 (防呆)
-    # 3. 如果 parent_appeal_id 有值，確認上一筆申訴狀態是否為 'Rejected'
+    try:
+        # 2. 檢查 Report_ID 是否真的存在 (防呆)
+        if file_urls:
+            appeal_data.evidence_link = ",".join(file_urls)
+        # 3. 如果 parent_appeal_id 有值，確認上一筆申訴狀態是否為 'Rejected'
     
-    # 呼叫 CRUD 寫入資料庫
-    new_appeal_id = crud_appeal.create_appeal(
-        db=db,
-        report_id=appeal_data.report_id,
-        reason=appeal_data.reason,
-        evidence_link=appeal_data.evidence_link,
-        parent_appeal_id=appeal_data.parent_appeal_id
-    )
+        # 呼叫 CRUD 寫入資料庫
+        new_appeal_id = crud_appeal.create_appeal(
+            db=db,
+            report_id=appeal_data.report_id,
+            reason=appeal_data.reason,
+            evidence_link=appeal_data.evidence_link,
+            parent_appeal_id=appeal_data.parent_appeal_id
+        )
 
-    is_re_appeal = "再申訴" if appeal_data.parent_appeal_id else "申訴"
 
-    return {
-        "status": "success",
-        "message": f"{is_re_appeal}已成功提交，系統將盡速派員審核。",
-        "appeal_id": new_appeal_id
-    }
+        is_re_appeal = "再申訴" if appeal_data.parent_appeal_id else "申訴"
+
+        return {
+            "status": "success",
+            "message": f"{is_re_appeal}已成功提交，系統將盡速派員審核。",
+            "appeal_id": new_appeal_id
+        }
+    except Exception as e:
+        # 當資料庫寫入失敗時->DB Rollback+S3的檔案刪除（avoid dirty read）
+        if uploaded_keys:
+            _rollback_s3_uploads(uploaded_keys)
+        db.rollback()
+        print(f"Database Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="申訴提交失敗，資料庫寫入錯誤")
+
+

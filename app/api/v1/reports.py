@@ -1,5 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy import Connection
 
 from app.api.deps import require_user
 from app.core.database import get_db
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/v1", tags=["reports"])
 def create_report(
     payload: ReportCreate,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: Connection = Depends(get_db),
     current_user: dict = Depends(require_user),
 ):
     """提交通報。需登入(一般使用者)。

@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy import Connection
 from app.crud import appeal, ruling, website, user, risk_history, audit_log
 from app.crud import report as report_crud
 from app.schemas.admin_review import AdminReviewRequest, ReportVerdictRequest
@@ -16,7 +16,7 @@ _VERDICT_MAP = {
 
 
 def process_report_verdict(
-    db: Session, admin_id: int, request: ReportVerdictRequest
+    db: Connection, admin_id: int, request: ReportVerdictRequest
 ) -> dict:
     """管理員對「舉報案件」直接裁決,不經申訴。
 
@@ -78,7 +78,7 @@ def process_report_verdict(
         db.rollback()
         raise
 
-def process_admin_adjudication(db: Session, admin_id: int, request: AdminReviewRequest) -> dict:
+def process_admin_adjudication(db: Connection, admin_id: int, request: AdminReviewRequest) -> dict:
     """處理管理員審核申訴的完整業務邏輯 (包含 Transaction)。
     admin_id 由 API 層從 session 帶入,不從 client 接受。
     """

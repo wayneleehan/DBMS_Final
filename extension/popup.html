@@ -2,91 +2,203 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>AntiFraud 狀態</title>
+  <title>AntiFraud</title>
   <style>
-    :root {
-      --bg: #fafafa;
-      --card: #ffffff;
-      --text: #212121;
-      --muted: #757575;
-      --border: #e0e0e0;
-    }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      margin: 0;
       width: 280px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #ffffff;
+      color: #111;
     }
-    .card {
-      background: var(--card);
-      padding: 16px;
-    }
+
+    /* Header */
     .header {
-      font-size: 12px;
-      color: var(--muted);
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
-    }
-    .status-row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 12px;
+      justify-content: space-between;
+      padding: 13px 16px;
+      border-bottom: 0.5px solid #f0f0f0;
     }
-    .dot {
-      width: 14px;
-      height: 14px;
+    .header-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      color: #111;
+    }
+    .header-title span { color: #E85D00; }
+    .header-dot {
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
+      background: #ddd;
+      transition: background 0.3s;
+    }
+
+    /* Hero */
+    .hero { padding: 18px 16px 14px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .badge svg { width: 13px; height: 13px; stroke-width: 2.2; }
+
+    .badge.blocked { background: #FEE8E8; color: #C0392B; }
+    .badge.warning { background: #FEF0E0; color: #E85D00; }
+    .badge.low-risk { background: #FFFAE0; color: #B8860B; }
+    .badge.safe     { background: #E8F8EE; color: #1E7A3E; }
+
+    .score-row { display: flex; align-items: baseline; gap: 8px; }
+    .score-num {
+      font-size: 40px;
+      font-weight: 700;
+      line-height: 1;
+      transition: color 0.3s;
+    }
+    .score-sub { font-size: 12px; color: #bbb; }
+
+    .score-num.blocked { color: #C0392B; }
+    .score-num.warning { color: #E85D00; }
+    .score-num.low-risk { color: #B8860B; }
+    .score-num.safe     { color: #1E7A3E; }
+
+    /* Divider */
+    .divider { height: 0.5px; background: #f0f0f0; margin: 0 16px; }
+
+    /* Details */
+    .details {
+      padding: 12px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+    .drow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .dkey {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #bbb;
+      white-space: nowrap;
       flex-shrink: 0;
     }
-    .status-label {
-      font-size: 20px;
-      font-weight: 600;
+    .dkey svg { width: 13px; height: 13px; stroke-width: 2; }
+    .dval {
+      font-size: 12px;
+      color: #222;
+      font-weight: 500;
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 160px;
     }
-    .url {
-      font-size: 13px;
-      color: var(--muted);
-      word-break: break-all;
-      margin-bottom: 12px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border);
+    .dval.url { color: #bbb; font-size: 11px; font-weight: 400; }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      background: #f4f4f4;
+      color: #888;
+      border: 0.5px solid #e8e8e8;
     }
-    .row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 13px;
-      margin-top: 6px;
-    }
-    .row .key { color: var(--muted); }
-    .row .val { font-weight: 500; }
-    .score {
-      font-size: 28px;
-      font-weight: 700;
-    }
+    .pill.new-url { color: #E85D00; background: #FEF0E0; border-color: #fad9bb; }
+
+    /* Empty state */
     .empty {
-      padding: 24px 16px;
+      padding: 32px 16px;
       text-align: center;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
     }
-    /* Status colors */
-    .blocked  { color: #D32F2F; }
-    .blocked  .dot { background: #D32F2F; }
-    .warning  { color: #F57C00; }
-    .warning  .dot { background: #F57C00; }
-    .low-risk { color: #FBC02D; }
-    .low-risk .dot { background: #FBC02D; }
-    .safe     { color: #2E7D32; }
-    .safe     .dot { background: #2E7D32; }
-    .unknown  { color: var(--muted); }
-    .unknown  .dot { background: var(--muted); }
+    .empty-icon {
+      display: block;
+      margin: 0 auto 10px;
+      width: 30px;
+      height: 30px;
+      color: #ddd;
+    }
+    .empty p { font-size: 12px; color: #bbb; line-height: 1.6; }
+
+    /* Hidden helper */
+    .hidden { display: none; }
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div class="header">
+    <span class="header-title">ANTIFRAUD<span>.</span></span>
+    <div class="header-dot" id="status-dot"></div>
+  </div>
+
+  <!-- Result state -->
+  <div id="result-view" class="hidden">
+    <div class="hero">
+      <div class="badge" id="status-badge">
+        <svg id="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"></svg>
+        <span id="badge-label"></span>
+      </div>
+      <div class="score-row">
+        <span class="score-num" id="score-num"></span>
+        <span class="score-sub">/ 100</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="details">
+      <div class="drow">
+        <span class="dkey">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          網址
+        </span>
+        <span class="dval url" id="detail-url"></span>
+      </div>
+      <div class="drow" id="ip-row">
+        <span class="dkey">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          IP
+        </span>
+        <span class="dval" id="detail-ip"></span>
+      </div>
+      <div class="drow">
+        <span class="dkey">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+          類型
+        </span>
+        <span class="pill" id="detail-type"></span>
+      </div>
+      <div class="drow">
+        <span class="dkey">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          說明
+        </span>
+        <span class="dval" id="detail-desc"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div id="empty-view">
+    <div class="empty">
+      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+      </svg>
+      <p>尚未檢測此分頁。<br>重新整理或前往新網址後再開啟。</p>
+    </div>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>

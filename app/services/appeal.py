@@ -16,22 +16,30 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.getenv("AWS_REGION", "ap-east-2")
 BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 
-# 偵錯用：確保不是讀到空值
-if not BUCKET_NAME:
-    raise ValueError("錯誤：找不到環境變數 S3_BUCKET_NAME，請檢查 .env 檔案是否存在！")
+s3_client = None
 
-s3_client = boto3.client(
-    "s3",
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    region_name=AWS_REGION
-)
+def _get_s3_client():
+    global s3_client
+    if not BUCKET_NAME:
+        raise HTTPException(
+            status_code=500,
+            detail="S3_BUCKET_NAME 未設定，無法上傳檔案"
+        )
+    if s3_client is None:
+        s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+            region_name=AWS_REGION
+        )
+    return s3_client
 
 def _rollback_s3_uploads(keys: List[str]):
     """輔助函式：發生錯誤時，刪除批次中已成功上傳至 S3 的檔案"""
+    client = _get_s3_client()
     for key in keys:
         try:
-            s3_client.delete_object(Bucket=BUCKET_NAME, Key=key)
+            client.delete_object(Bucket=BUCKET_NAME, Key=key)
         except Exception:
             pass 
 
@@ -45,24 +53,26 @@ async def process_appeal_submission(db: Session, appeal_data: AppealCreateReques
     uploaded_keys = [] 
 
     if files:
+        client = None
         for file in files:
-            if not file.content_type.startswith("image/"):
+            if not file.content_type or not file.content_type.startswith("image/"):
                 raise HTTPException(status_code=400, detail="僅允許上傳圖片檔案")
             #轉小寫附檔名
             _, file_ext = os.path.splitext(file.filename)
             unique_filename = f"appeals/{uuid.uuid4().hex}{file_ext.lower()}"
             
             try:
+                client = client or _get_s3_client()
                 file_content = await file.read()
                 #putobject
-                s3_client.put_object(
+                client.put_object(
                     Bucket=BUCKET_NAME,
                     Key=unique_filename,
                     Body=file_content,
                     ContentType=file.content_type
                 )
                 """
-                s3_client.upload_fileobj(
+                client.upload_fileobj(
                     file.file,
                     BUCKET_NAME,
                     unique_filename,
@@ -70,7 +80,7 @@ async def process_appeal_submission(db: Session, appeal_data: AppealCreateReques
                 )
                 """
                 uploaded_keys.append(unique_filename)
-                file_url = f"https://{BUCKET_NAME}.s3.{os.getenv('AWS_REGION')}.amazonaws.com/{unique_filename}"
+                file_url = f"https://{BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{unique_filename}"
                 file_urls.append(file_url)
 
             except Exception as e:
@@ -108,5 +118,3 @@ async def process_appeal_submission(db: Session, appeal_data: AppealCreateReques
         db.rollback()
         print(f"Database Error: {str(e)}")
         raise HTTPException(status_code=500, detail="申訴提交失敗，資料庫寫入錯誤")
-
-

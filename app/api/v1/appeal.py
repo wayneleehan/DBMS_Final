@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy import Connection
 from app.core.database import get_db
+from app.api.deps import require_admin, require_user
 from app.crud import appeal as crud_appeal
 from app.schemas.appeal import AppealCreateRequest, AppealResponse
 from app.services import appeal as appeal_service
@@ -11,7 +12,10 @@ from app.services import appeal as appeal_service
 router = APIRouter(prefix="/api/v1/appeals", tags=["Appeals System (申訴系統)"])
 
 @router.get("/", response_model=list)
-def get_appeals(db: Connection = Depends(get_db)):
+def get_appeals(
+    db: Connection = Depends(get_db),
+    _admin: dict = Depends(require_admin),
+):
     """
     取得所有待審核的申訴案件列表
     """
@@ -24,7 +28,8 @@ async def submit_appeal(
     parent_appeal_id: Optional[int] = Form(None),
     contact_info: Optional[str] = Form(None),
     files: Optional[List[UploadFile]] = File(None), # 用 UploadFile 接收二進位檔案
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _user: dict = Depends(require_user),
     ):
     """
     使用者提交申訴或再申訴。

@@ -4,6 +4,9 @@ Cookie session 機制由 starlette.middleware.sessions.SessionMiddleware 處理
 (在 main.py 註冊),這裡只負責讀寫 request.session 字典。
 """
 
+import time
+from collections import defaultdict, deque
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import Connection
 
@@ -20,15 +23,47 @@ from app.crud import user as user_crud
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
+_LOGIN_WINDOW_SECONDS = 5 * 60
+_LOGIN_MAX_ATTEMPTS = 5
+_login_attempts: dict[tuple[str, str], deque[float]] = defaultdict(deque)
+
+
+def _login_rate_key(request: Request, email: str) -> tuple[str, str]:
+    client_host = request.client.host if request.client else "unknown"
+    return (client_host, email.strip().lower())
+
+
+def _check_login_rate_limit(request: Request, email: str):
+    key = _login_rate_key(request, email)
+    now = time.monotonic()
+    attempts = _login_attempts[key]
+
+    while attempts and now - attempts[0] > _LOGIN_WINDOW_SECONDS:
+        attempts.popleft()
+
+    if len(attempts) >= _LOGIN_MAX_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="登入嘗試過於頻繁,請稍後再試")
+
+
+def _record_failed_login(request: Request, email: str):
+    _login_attempts[_login_rate_key(request, email)].append(time.monotonic())
+
+
+def _clear_failed_logins(request: Request, email: str):
+    _login_attempts.pop(_login_rate_key(request, email), None)
+
 
 @router.post("/login", response_model=LoginResponse)
 def login(request: Request, payload: LoginRequest, db: Connection = Depends(get_db)):
     """登入。成功後在 cookie session 寫入 {role, principal_id},並回傳 UserInfo。"""
+    _check_login_rate_limit(request, payload.email)
     info = auth_service.authenticate(db, payload.role, payload.email, payload.password)
     if info is None:
+        _record_failed_login(request, payload.email)
         # 統一錯誤訊息,不洩漏「帳號不存在」還是「密碼錯誤」
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤,請確認後重新輸入")
 
+    _clear_failed_logins(request, payload.email)
     request.session["role"] = info["role"]
     request.session["principal_id"] = info["id"]
     return LoginResponse(ok=True, user=UserInfo(**info))

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 class AdminReviewRequest(BaseModel):
     # admin_id 不再從 client 帶,改由 session 提供(避免冒名),由 API 層注入給 service
     appeal_id: int = Field(..., description="正在審核的申訴案件 ID")
-    decision: str = Field(..., description="裁決結果:'Approved' (同意解封) 或 'Rejected' (駁回申訴)")
+    decision: Literal["Approved", "Rejected"] = Field(..., description="裁決結果:'Approved' (同意解封) 或 'Rejected' (駁回申訴)")
     ruling_result: str = Field(..., description="管理員留下的處置意見與理由")
     is_unreasonable: bool = Field(False, description="若駁回,是否判定為惡意虛假申訴 (將扣除信譽分)")
 
@@ -27,6 +27,7 @@ class ReviewQueueItem(BaseModel):
     website_status: str           # WEBSITE.Status enum
     risk_score: float
     reason: Optional[str] = None
+    evidence_urls: list[str] = Field(default_factory=list)
     submitted_at: datetime
     submitter_id: int
     submitter_name: str
@@ -41,7 +42,7 @@ class ReviewQueueCounts(BaseModel):
 class ReportVerdictRequest(BaseModel):
     """管理員對「舉報案件」的直接裁決(不經申訴流程)。"""
     report_id: int = Field(..., description="被裁決的 Report_ID")
-    verdict: str = Field(..., description="裁決:'safe' / 'warn' / 'danger'")
+    verdict: Literal["safe", "warn", "danger"] = Field(..., description="裁決:'safe' / 'warn' / 'danger'")
     note: str = Field(..., description="管理員備註,寫入 AUDIT_LOG")
 
 

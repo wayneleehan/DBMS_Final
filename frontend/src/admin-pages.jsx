@@ -2,6 +2,8 @@ import React from "react";
 import { MOCK } from "./data.jsx";
 import { API } from "./api/index.js";
 import { I, Stat, CaseBadge, RiskRing, StatusBadge } from "./components.jsx";
+import { normalizeWebsiteStatus } from "./status.js";
+import { isHttpUrl, openHttpUrl } from "./url.js";
 
 // ===== ADMIN: REVIEW PAGE =====
 export function AdminReview({ onOpen }) {
@@ -51,6 +53,7 @@ export function AdminReview({ onOpen }) {
       time: r.submitted_at ? r.submitted_at.replace("T", " ").slice(0, 16) : "—",
       reason: r.reason,
       website_status: r.website_status,
+      evidence: Array.isArray(r.evidence_urls) ? r.evidence_urls : [],
     };
   }
 
@@ -221,7 +224,7 @@ export function ReviewDetail({ caseData, onBack }) {
           <p className="page-sub">{c.cat} · 由 <strong>{c.submitter}</strong>（信譽 <span className="num">{c.reputation}</span>）提交於 <span className="num">{c.time}</span></p>
         </div>
         <div className="row">
-          <button className="btn ghost sm">{I.external} 開啟網址</button>
+          <button className="btn ghost sm" onClick={() => openHttpUrl(c.url)}>{I.external} 開啟網址</button>
           <button className="btn ghost sm">指派給其他審核員</button>
         </div>
       </div>
@@ -239,7 +242,7 @@ export function ReviewDetail({ caseData, onBack }) {
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 6 }}>目前狀態</div>
-                  <StatusBadge status={c.website_status || "warn"} />
+                  <StatusBadge status={normalizeWebsiteStatus(c.website_status)} />
                   <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 6 }}>已進入觀察</div>
                 </div>
                 <div>
@@ -264,11 +267,7 @@ export function ReviewDetail({ caseData, onBack }) {
                 {c.reason || "假冒銀行登入頁，UI 與官方相似度極高，要求用戶輸入網銀帳號密碼與 OTP，並以「帳戶異常」為由誘導匯款。"}
               </p>
               <div className="section-title">證據檔案</div>
-              <div className="grid cols-3" style={{ gap: 10 }}>
-                {(c.evidence || ["screenshot-01.png", "screenshot-02.png", "evidence.txt"]).map((f, i) => (
-                  <div key={i} className="placeholder-img" style={{ height: 120 }}>[{f}]</div>
-                ))}
-              </div>
+              <EvidenceGrid files={c.evidence || []} />
             </div>
           </div>
 
@@ -333,6 +332,29 @@ export function ReviewDetail({ caseData, onBack }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function EvidenceGrid({ files }) {
+  const imageUrls = files.filter(isHttpUrl);
+
+  if (imageUrls.length === 0) {
+    return (
+      <div className="empty" style={{ padding: 18 }}>
+        <div className="ic">{I.upload}</div>
+        這筆案件沒有上傳圖片證據
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid cols-3" style={{ gap: 10 }}>
+      {imageUrls.map((url, i) => (
+        <a key={url} href={url} target="_blank" rel="noreferrer" className="evidence-thumb" title="開啟原始圖片">
+          <img src={url} alt={`證據圖片 ${i + 1}`} loading="lazy" />
+        </a>
+      ))}
     </div>
   );
 }
@@ -421,11 +443,14 @@ export function AdminProfile({ user }) {
   // user 是後端回的 UserInfo;admin 版有 admin_role 但沒 reliability_score。
   // 其他顯示用欄位(stats / history)還沒對應 API,先用 MOCK 補。
   const [history, setHistory] = React.useState([]);
+  const [loadingHistory, setLoadingHistory] = React.useState(true);
+  const [historyErr, setHistoryErr] = React.useState(null);
 
   React.useEffect(() => {
     API.getAdminHistory()
       .then(setHistory)
-      .catch(() => { });
+      .catch((e) => setHistoryErr(e.message || "載入審核歷史失敗"))
+      .finally(() => setLoadingHistory(false));
   }, []);
 
   const a = {
@@ -481,7 +506,13 @@ export function AdminProfile({ user }) {
             </tr>
           </thead>
           <tbody>
-            {history.map((h, i) => (
+            {loadingHistory ? (
+              <tr><td colSpan={5} style={{ textAlign: "center", padding: 24, color: "var(--text-3)" }}>載入中…</td></tr>
+            ) : historyErr ? (
+              <tr><td colSpan={5} style={{ textAlign: "center", padding: 24, color: "#B91C1C" }}>{historyErr}</td></tr>
+            ) : history.length === 0 ? (
+              <tr><td colSpan={5} style={{ textAlign: "center", padding: 24, color: "var(--text-3)" }}>目前沒有審核歷史</td></tr>
+            ) : history.map((h, i) => (
               <tr key={i}>
                 <td className="num" style={{ fontSize: 12, color: "var(--text-3)" }}>{h.time}</td>
                 <td className="url-cell">{h.url}</td>

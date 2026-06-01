@@ -45,15 +45,19 @@ def authenticate(db: Connection, role: str, email: str, password: str) -> dict |
         record = user_crud.get_user_by_email(db, email)
         if not record:
             return None
-    # 暫時跳過密碼驗證
+        if not verify_password(password, record["Password_Hash"]):
+            return None
         return _user_to_info(record)
 
     if role == "admin":
         record = admin_crud.get_admin_by_email(db, email)
         if not record:
             return None
-    # 暫時跳過密碼驗證
-    return _admin_to_info(record)
+        if not verify_password(password, record["Password_Hash"]):
+            return None
+        return _admin_to_info(record)
+
+    return None
 
 
 def restore_session_user(db: Connection, role: str, principal_id: int) -> dict | None:
@@ -87,11 +91,11 @@ def _admin_to_info(row: dict) -> dict:
     return {
         "id": row["Admin_ID"],
         "role": "admin",
-        "email": row.get("Name", ""),  # 用 Name 當 email 顯示
+        "email": row.get("Email", ""),
         "name": row.get("Name", "管理員"),
         "reliability_score": None,
         "admin_role": row.get("Role"),
-        "created_at": None,
+        "created_at": row.get("Created_At"),
     }
 
 

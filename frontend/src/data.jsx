@@ -1,4 +1,6 @@
 // Mock data
+import { normalizeWebsiteStatus } from "./status.js";
+
 export const MOCK = {
   user: {
     name: "陳治安",
@@ -80,13 +82,14 @@ export function reputationLevel(score) {
 }
 
 export function statusMeta(s) {
+  const status = normalizeWebsiteStatus(s);
   return ({
     safe:      { label: "安全",         cls: "safe" },
     warn:      { label: "可疑",         cls: "warn" },
     danger:    { label: "高風險",       cls: "danger" },
     confirmed: { label: "已確認為詐騙", cls: "danger" },
     info:      { label: "資訊",         cls: "info" },
-  }[s] || { label: s, cls: "muted" });
+  }[status] || { label: status, cls: "muted" });
 }
 
 export function caseStatusMeta(s) {

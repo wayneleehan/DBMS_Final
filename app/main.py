@@ -32,7 +32,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET_KEY", "dev-only-do-not-use-in-prod"),
     same_site="lax",
-    https_only=False,  # 本機 dev 用 http;上 prod 改 True
+    https_only=_https_only,
     max_age=60 * 60 * 24 * 7,  # 7 天
 )
 

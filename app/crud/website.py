@@ -102,10 +102,15 @@ def get_website_by_url(db: Connection, url: str):
     return db.execute(sql, {"url": url}).mappings().first()
 
 
-def get_all_websites(db: Connection) -> list[dict]:
+def get_all_websites(db: Connection, limit: int = 100, offset: int = 0) -> list[dict]:
     """取得所有 WEBSITE 紀錄,給 GET /api/v1/websites/ 用。"""
-    sql = text("SELECT Site_ID, URL, IP_Address, Status, Risk_Score FROM WEBSITE")
-    rows = db.execute(sql).mappings().all()
+    sql = text("""
+        SELECT Site_ID, URL, IP_Address, Status, Risk_Score
+        FROM WEBSITE
+        ORDER BY Site_ID
+        LIMIT :limit OFFSET :offset
+    """)
+    rows = db.execute(sql, {"limit": limit, "offset": offset}).mappings().all()
     return [dict(row) for row in rows]
 
 

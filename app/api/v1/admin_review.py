@@ -89,13 +89,13 @@ def get_admin_history(
             al.Log_ID,
             al.Action_Type,
             al.New_Data,
-            al.Timestamp,
+            NULL AS Timestamp,
             w.URL
-        FROM audit_log al
+        FROM AUDIT_LOG al
         LEFT JOIN WEBSITE w ON JSON_UNQUOTE(JSON_EXTRACT(al.New_Data, '$.site_id')) = w.Site_ID
         WHERE al.Admin_ID = :admin_id
           AND al.Action_Type IN ('REVIEW_REPORT', 'REVIEW_APPEAL')
-        ORDER BY al.Timestamp DESC
+        ORDER BY al.Log_ID DESC
         LIMIT :limit
     """), {"admin_id": admin["id"], "limit": limit}).mappings().all()
 

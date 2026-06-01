@@ -52,7 +52,7 @@ def get_alerts(
 ):
     rows = db.execute(text("""
         SELECT Alert_ID, Alert_Type, Target_ID, Description, Timestamp
-        FROM alert_logs
+        FROM ALERT_LOGS
         ORDER BY Timestamp DESC
         LIMIT :limit
     """), {"limit": limit}).mappings().all()

@@ -43,6 +43,8 @@ _QUEUE_REPORTS_SQL = """
         w.Status                                 AS website_status,
         w.Risk_Score                             AS risk_score,
         r.Reason                                 AS reason,
+        r.Evidence_Path                          AS evidence_path,
+        NULL                                     AS appeal_evidence_link,
         r.Timestamp                              AS submitted_at,
         u.User_ID                                AS submitter_id,
         COALESCE(u.Name, '未知使用者')            AS submitter_name,
@@ -66,6 +68,8 @@ _QUEUE_APPEALS_SQL = """
         w.Status                                 AS website_status,
         w.Risk_Score                             AS risk_score,
         a.Reason                                 AS reason,
+        r.Evidence_Path                          AS evidence_path,
+        a.Evidence_Link                          AS appeal_evidence_link,
         r.Timestamp                              AS submitted_at,
         u.User_ID                                AS submitter_id,
         COALESCE(u.Name, '未知使用者')            AS submitter_name,
@@ -98,7 +102,15 @@ def get_review_queue(
         LIMIT :limit
     """)
     rows = db.execute(sql, {"limit": limit}).mappings().all()
-    return [dict(r) for r in rows]
+    result = []
+    for row in rows:
+        item = dict(row)
+        item["evidence_urls"] = _split_evidence_urls(
+            item.pop("evidence_path", None),
+            item.pop("appeal_evidence_link", None),
+        )
+        result.append(item)
+    return result
 
 
 def get_review_queue_counts(db: Connection) -> dict:
@@ -106,3 +118,12 @@ def get_review_queue_counts(db: Connection) -> dict:
     pending = db.execute(text(f"SELECT COUNT(*) FROM ({_QUEUE_REPORTS_SQL}) q")).scalar() or 0
     appealing = db.execute(text(f"SELECT COUNT(*) FROM ({_QUEUE_APPEALS_SQL}) q")).scalar() or 0
     return {"pending": pending, "appealing": appealing}
+
+
+def _split_evidence_urls(*values: str | None) -> list[str]:
+    urls: list[str] = []
+    for value in values:
+        if not value:
+            continue
+        urls.extend(part.strip() for part in value.split(",") if part.strip())
+    return urls

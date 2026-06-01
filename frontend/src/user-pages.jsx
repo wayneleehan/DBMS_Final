@@ -1,7 +1,9 @@
 import React from "react";
-import { MOCK, riskColor, statusToCaseDisplay, reputationLevel } from "./data.jsx";
+import { riskColor, statusToCaseDisplay, reputationLevel } from "./data.jsx";
 import { API } from "./api/index.js";
 import { I, StatusBadge, CaseBadge } from "./components.jsx";
+import { normalizeWebsiteStatus } from "./status.js";
+import { isReportableUrlInput, normalizeUserUrlInput } from "./url.js";
 
 // ===== LOGIN PAGE =====
 export function LoginPage({ onLogin }) {
@@ -317,11 +319,12 @@ export function UserProfile({ user }) {
     const [stats, setStats] = React.useState({ total: 0, approved: 0, rejected: 0, appeals: 0 });
     const [records, setRecords] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
+    const [err, setErr] = React.useState(null);
 
     React.useEffect(() => {
         Promise.all([API.getMyStats(), API.getMyReports(6)])
             .then(([s, r]) => { setStats(s); setRecords(r); })
-            .catch((e) => console.error("Failed to load profile data:", e))
+            .catch((e) => setErr(e.message || "載入個人資料失敗"))
             .finally(() => setLoading(false));
     }, []);
 
@@ -408,6 +411,8 @@ export function UserProfile({ user }) {
                     <tbody>
                         {loading ? (
                             <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-3)", padding: 24 }}>載入中…</td></tr>
+                        ) : err ? (
+                            <tr><td colSpan={6} style={{ textAlign: "center", color: "#B91C1C", padding: 24 }}>{err}</td></tr>
                         ) : records.length === 0 ? (
                             <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-3)", padding: 24 }}>尚無通報紀錄</td></tr>
                         ) : records.map((r) => {
@@ -531,15 +536,13 @@ function ReportForm({ onSubmit }) {
     const [submitting, setSubmitting] = React.useState(false);
     const cats = ["假冒官方網站", "釣魚網站", "投資詐騙", "購物詐騙", "其他"];
 
-    // URL validation: domain.tld with optional path, no spaces
-    const URL_RE = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(\/[^\s]*)?$/i;
-    const urlValid = URL_RE.test(url.trim());
+    const urlValid = isReportableUrlInput(url);
     const ok = urlValid && !submitting;
 
     function handleUrl(v) {
         setUrl(v);
         if (!v.trim()) { setUrlErr(null); return; }
-        if (!URL_RE.test(v.trim())) setUrlErr("網址格式不正確 · 例:example.com 或 example.com/path");
+        if (!isReportableUrlInput(v)) setUrlErr("網址格式不正確 · 例:https://example.com/path 或 example.com/path");
         else setUrlErr(null);
     }
 
@@ -548,8 +551,7 @@ function ReportForm({ onSubmit }) {
         setSubmitErr(null);
         setSubmitting(true);
         try {
-            // 補上 https:// 讓 backend 跟 extension 的格式一致(extension 也送完整 URL)
-            const fullUrl = "https://" + url.trim();
+            const fullUrl = normalizeUserUrlInput(url);
             const result = await API.submitReport({ url: fullUrl, category: cat, reason: reason || null, files: files  });
             onSubmit(result);  // 把後端回的 {url, status, risk_score, is_new} 帶上去
         } catch (e) {
@@ -615,6 +617,7 @@ function AppealForm({ onSubmit }) {
     const [files, setFiles] = React.useState([]);
     const [myReports, setMyReports] = React.useState([]);
     const [loadingReports, setLoadingReports] = React.useState(true);
+    const [loadReportsErr, setLoadReportsErr] = React.useState(null);
     const [submitting, setSubmitting] = React.useState(false);
     const [submitErr, setSubmitErr] = React.useState(null);
 
@@ -622,7 +625,7 @@ function AppealForm({ onSubmit }) {
     React.useEffect(() => {
         API.getMyReports(100)
             .then(setMyReports)
-            .catch((e) => console.error("Load reports failed:", e))
+            .catch((e) => setLoadReportsErr(e.message || "載入通報紀錄失敗"))
             .finally(() => setLoadingReports(false));
     }, []);
 
@@ -634,21 +637,6 @@ function AppealForm({ onSubmit }) {
     }, [query, myReports]);
 
     const ok = selectedReport && reason.trim().length > 0 && !submitting;
-
-    /*async function submit() {
-        if (!selectedReport) { setSubmitErr("請從下方選擇要申訴的通報"); return; }
-        if (!reason.trim()) { setSubmitErr("請填寫申訴原因"); return; }
-        setSubmitErr(null);
-        setSubmitting(true);
-        try {
-            const result = await API.submitAppeal({ report_id: selectedReport.report_id, reason: reason.trim() });
-            onSubmit(result);
-        } catch (e) {
-            setSubmitErr(e.status === 401 ? "登入狀態已失效,請重新登入" : (e.message || "送出失敗"));
-        } finally {
-            setSubmitting(false);
-        }
-    }*/
 
     async function submit() {
         if (!selectedReport) { setSubmitErr("請從下方選擇要申訴的通報"); return; }
@@ -682,7 +670,10 @@ function AppealForm({ onSubmit }) {
                         <input value={query} onChange={(e) => { setQuery(e.target.value); setSelectedReport(null); }}
                             placeholder={loadingReports ? "載入中…" : "輸入網址搜尋,或從下方挑選"} disabled={loadingReports} />
                     </div>
-                    {!selectedReport && !loadingReports && (
+                    {loadReportsErr && (
+                        <div className="err" style={{ marginTop: 8 }}>{I.warn}{loadReportsErr}</div>
+                    )}
+                    {!selectedReport && !loadingReports && !loadReportsErr && (
                         <div style={{ marginTop: 8, border: "1px solid var(--border)", borderRadius: 10, maxHeight: 260, overflowY: "auto", background: "#fff" }}>
                             {filtered.length === 0 ? (
                                 <div style={{ padding: 14, fontSize: 13, color: "var(--text-3)" }}>
@@ -762,11 +753,28 @@ function AppealForm({ onSubmit }) {
 
 function DropZone({ files, setFiles }) {
     const [drag, setDrag] = React.useState(false);
+    const [err, setErr] = React.useState(null);
     const fileInputRef = React.useRef(null);
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
     const handleFiles = (newFiles) => {
         if (!newFiles) return;
-        setFiles(prev => [...prev, ...Array.from(newFiles)]);
+        setErr(null);
+        const accepted = [];
+        const rejected = [];
+
+        for (const file of Array.from(newFiles)) {
+            if (!file.type.startsWith("image/")) {
+                rejected.push(`${file.name} 不是圖片檔`);
+            } else if (file.size > MAX_FILE_SIZE) {
+                rejected.push(`${file.name} 超過 10MB`);
+            } else {
+                accepted.push(file);
+            }
+        }
+
+        if (rejected.length > 0) setErr(rejected.join("；"));
+        if (accepted.length > 0) setFiles(prev => [...prev, ...accepted]);
     };
 
     return (
@@ -795,6 +803,7 @@ function DropZone({ files, setFiles }) {
                     {files.map((f, i) => <span key={i} className="muted-tag">{f.name}</span>)}
                 </div>
             )}
+            {err && <div className="err" style={{ justifyContent: "center", marginTop: 10 }}>{I.warn}{err}</div>}
         </div>
     );
 }
@@ -805,21 +814,20 @@ export function WebsiteOverview() {
     const [q, setQ] = React.useState("");
     const [websites, setWebsites] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
+    const [err, setErr] = React.useState(null);
 
     React.useEffect(() => {
-        import("./api/website.js").then(({ getWebsites }) => {
-            getWebsites()
-                .then(data => setWebsites(data.map(w => ({
-                    url: w.URL,
-                    domain: "",
-                    risk: w.Risk_Score,
-                    status: w.Status.toLowerCase(),
-                    reports: 0,
-                    updated: "",
-                }))))
-                .catch(() => { })
-                .finally(() => setLoading(false));
-        });
+        API.getWebsites()
+            .then(data => setWebsites(data.map(w => ({
+                url: w.URL,
+                domain: "",
+                risk: w.Risk_Score,
+                status: normalizeWebsiteStatus(w.Status),
+                reports: 0,
+                updated: "",
+            }))))
+            .catch((e) => setErr(e.message || "載入網址列表失敗"))
+            .finally(() => setLoading(false));
     }, []);
 
     const filters = [
@@ -872,6 +880,8 @@ export function WebsiteOverview() {
                     <tbody>
                         {loading ? (
                             <tr><td colSpan={4} style={{ textAlign: "center", padding: 24, color: "var(--text-3)" }}>載入中…</td></tr>
+                        ) : err ? (
+                            <tr><td colSpan={4} style={{ textAlign: "center", padding: 24, color: "#B91C1C" }}>{err}</td></tr>
                         ) : rows.map((w) => (
                             <tr key={w.url}>
                                 <td className="url-cell">{w.url}<small>{w.domain}</small></td>

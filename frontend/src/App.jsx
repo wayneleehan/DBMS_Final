@@ -9,7 +9,7 @@ import { useTweaks, TweaksPanel, TweakSection, TweakSelect, TweakButton } from "
 const TWEAK_DEFAULTS = { showRoleSwitcher: true };
 
 function App() {
-  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  useTweaks(TWEAK_DEFAULTS);
   const [currentUser, setCurrentUser] = React.useState(null);
   const [authChecking, setAuthChecking] = React.useState(true);
   const [userPage, setUserPage] = React.useState("overview");
@@ -25,7 +25,7 @@ function App() {
   }, []);
 
   async function handleLogout() {
-    try { await API.logout(); } catch (_) { }
+    try { await API.logout(); } catch { }
     setCurrentUser(null);
   }
 

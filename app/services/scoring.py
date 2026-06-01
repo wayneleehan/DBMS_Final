@@ -2,6 +2,7 @@
 from sqlalchemy import Connection
 from fastapi import BackgroundTasks
 import socket
+from app.core.database import engine
 from app.crud import website, server_info, fraud_pattern, evaluation, risk_history
 from app.utils.scraper import simple_scrape_content, get_domain_age_days # 確保這裡有引用 age 函式
 
@@ -67,7 +68,7 @@ def run_scoring_pipeline(
         raise
 
     # 4. 派發背景深度分析任務
-    background_tasks.add_task(deep_analyze_background, db, site_id, url, initial_score)
+    background_tasks.add_task(deep_analyze_background, site_id, url, initial_score)
 
     return {
         "Site_ID": site_id,
@@ -77,37 +78,38 @@ def run_scoring_pipeline(
     }
 
 # --- Part 2 deep scanning (已合併網域年齡與爬蟲邏輯) ---
-def deep_analyze_background(db: Connection, site_id: int, url: str, old_score: float):
+def deep_analyze_background(site_id: int, url: str, old_score: float):
     added_score = 0.0
 
-    try:
-        # A. 網域年齡檢查
-        age_days = get_domain_age_days(url)
-        if age_days is not None and age_days < 30:
-            # 檢查是否已存在 Pattern_ID=3 的紀錄，避免重複寫入
-            if not evaluation.check_evaluation_exists(db, site_id, 3):
-                evaluation.create_evaluation(db, site_id, 3)
-                added_score += 35.0
+    with engine.connect() as db:
+        try:
+            # A. 網域年齡檢查
+            age_days = get_domain_age_days(url)
+            if age_days is not None and age_days < 30:
+                # 檢查是否已存在 Pattern_ID=3 的紀錄，避免重複寫入
+                if not evaluation.check_evaluation_exists(db, site_id, 3):
+                    evaluation.create_evaluation(db, site_id, 3)
+                    added_score += 35.0
 
-        # B. 網頁內容爬蟲與樣態比對
-        web_content = simple_scrape_content(url)
-        patterns = fraud_pattern.get_all_patterns(db)
+            # B. 網頁內容爬蟲與樣態比對
+            web_content = simple_scrape_content(url)
+            patterns = fraud_pattern.get_all_patterns(db)
 
-        for p in patterns:
-            # 避免重複計分與重複寫入 evaluation
-            if p['Type'].lower() in web_content.lower():
-                if not evaluation.check_evaluation_exists(db, site_id, p['Pattern_ID']):
-                    evaluation.create_evaluation(db, site_id, p['Pattern_ID'])
-                    added_score += p['Weight']
+            for p in patterns:
+                # 避免重複計分與重複寫入 evaluation
+                if p['Type'].lower() in web_content.lower():
+                    if not evaluation.check_evaluation_exists(db, site_id, p['Pattern_ID']):
+                        evaluation.create_evaluation(db, site_id, p['Pattern_ID'])
+                        added_score += p['Weight']
 
-        # C. 計算最終分數與更新狀態
-        final_score = min(old_score + added_score, 100.0)
-        final_status = get_status_by_score(final_score)
+            # C. 計算最終分數與更新狀態
+            final_score = min(old_score + added_score, 100.0)
+            final_status = get_status_by_score(final_score)
 
-        website.update_website_score(db, site_id, final_score, final_status)
-        risk_history.create_history(db, site_id, old_score, final_score)
+            website.update_website_score(db, site_id, final_score, final_status)
+            risk_history.create_history(db, site_id, old_score, final_score)
 
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise

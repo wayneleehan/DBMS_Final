@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.orm import Session
 from app.crud import appeal as crud_appeal
+from app.crud import report as crud_report
 from app.schemas.appeal import AppealCreateRequest
 from dotenv import load_dotenv
 
@@ -43,7 +44,12 @@ def _rollback_s3_uploads(keys: List[str]):
         except Exception:
             pass 
 
-async def process_appeal_submission(db: Session, appeal_data: AppealCreateRequest, files: Optional[List[UploadFile]]) -> dict:
+async def process_appeal_submission(
+    db: Session,
+    appeal_data: AppealCreateRequest,
+    files: Optional[List[UploadFile]],
+    user_id: int,
+) -> dict:
     """
     處理使用者提交申訴或再申訴的邏輯。
     若任一步驟失敗,rollback 由本 service 負責,API 層只負責轉成 HTTP 錯誤。
@@ -90,6 +96,12 @@ async def process_appeal_submission(db: Session, appeal_data: AppealCreateReques
                 raise HTTPException(status_code=500, detail="檔案上傳至 S3 失敗")
     try:
         # 2. 檢查 Report_ID 是否真的存在 (防呆)
+        report = crud_report.get_report_with_site(db, appeal_data.report_id)
+        if not report:
+            raise HTTPException(status_code=404, detail="找不到要申訴的通報")
+        if int(report["User_ID"]) != int(user_id):
+            raise HTTPException(status_code=403, detail="只能申訴自己的通報")
+
         if file_urls:
             appeal_data.evidence_link = ",".join(file_urls)
         # 3. 如果 parent_appeal_id 有值，確認上一筆申訴狀態是否為 'Rejected'
@@ -105,12 +117,18 @@ async def process_appeal_submission(db: Session, appeal_data: AppealCreateReques
 
 
         is_re_appeal = "再申訴" if appeal_data.parent_appeal_id else "申訴"
+        db.commit()
 
         return {
             "status": "success",
             "message": f"{is_re_appeal}已成功提交，系統將盡速派員審核。",
             "appeal_id": new_appeal_id
         }
+    except HTTPException:
+        if uploaded_keys:
+            _rollback_s3_uploads(uploaded_keys)
+        db.rollback()
+        raise
     except Exception as e:
         # 當資料庫寫入失敗時->DB Rollback+S3的檔案刪除（avoid dirty read）
         if uploaded_keys:

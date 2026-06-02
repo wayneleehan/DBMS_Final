@@ -16,6 +16,7 @@ from datetime import datetime
 from fastapi import BackgroundTasks
 from sqlalchemy import Connection
 
+from app.crud.click_event import create_click_event
 from app.crud.website import get_website_by_url
 from app.services.scoring import run_scoring_pipeline
 
@@ -28,12 +29,14 @@ def check_visit(
     visited_at: datetime | None,
     background_tasks: BackgroundTasks,
     ip_address: str | None = None,
+    user_id: int | None = None,
 ) -> dict:
     """檢查一筆瀏覽紀錄,回傳給 API 層的結構。"""
     timestamp = visited_at or datetime.now()
 
     existing = get_website_by_url(db, url)
     if existing:
+        site_id = existing["Site_ID"]
         result = {
             "url": existing["URL"],
             "status": existing["Status"],
@@ -43,6 +46,7 @@ def check_visit(
         tag = "cached"
     else:
         scored = run_scoring_pipeline(db, url, background_tasks, ip=ip_address)
+        site_id = scored["Site_ID"]
         result = {
             "url": scored["URL"],
             "status": scored["Status"],
@@ -50,6 +54,10 @@ def check_visit(
             "is_new": True,
         }
         tag = "new (scored)"
+
+    if user_id is not None:
+        create_click_event(db, user_id=user_id, site_id=site_id)
+        db.commit()
 
     ip_log = f" ip={ip_address}" if ip_address else ""
     logger.info(

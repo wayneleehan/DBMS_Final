@@ -25,6 +25,7 @@ class UserInfo(BaseModel):
 class LoginResponse(BaseModel):
     ok: bool
     user: UserInfo
+    csrf_token: str | None = None
 
 
 class RegisterRequest(BaseModel):

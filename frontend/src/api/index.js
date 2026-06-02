@@ -1,11 +1,15 @@
-import { apiFetch } from "./client.js";
+import { apiFetch, setCsrfToken } from "./client.js";
 
 export const API = {
     login: (role, email, password) =>
         apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ role, email, password }) }),
     register: (name, email, password) =>
         apiFetch("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password }) }),
-    logout: () => apiFetch("/auth/logout", { method: "POST" }),
+    logout: async () => {
+        const result = await apiFetch("/auth/logout", { method: "POST" });
+        setCsrfToken(null);
+        return result;
+    },
     me: () => apiFetch("/auth/me"),
     submitReport: ({ url, category, reason, files }) => {
         const formData = new FormData();
@@ -50,6 +54,10 @@ export const API = {
         return apiFetch(`/admin/queue?${params}`);
     },
     getReviewQueueCounts: () => apiFetch("/admin/queue/counts"),
+    getCaseHistory: ({ type, raw_id }) => {
+        const params = new URLSearchParams({ case_type: type, raw_id: String(raw_id) });
+        return apiFetch(`/admin/case-history?${params}`);
+    },
     submitReview: ({ appeal_id, decision, ruling_result, is_unreasonable = false }) =>
         apiFetch("/admin/review", { method: "POST", body: JSON.stringify({ appeal_id, decision, ruling_result, is_unreasonable }) }),
     submitReportVerdict: ({ report_id, verdict, note }) =>

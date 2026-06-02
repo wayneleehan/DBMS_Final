@@ -23,9 +23,12 @@ class ReviewQueueItem(BaseModel):
     type: str                     # '舉報' / '申訴'
     case_status: str              # '待審核' / '申訴中'
     url: str
+    domain: Optional[str] = None
     category: Optional[str] = None
     website_status: str           # WEBSITE.Status enum
     risk_score: float
+    report_count: int = 0
+    is_new_domain: bool = False
     reason: Optional[str] = None
     evidence_urls: list[str] = Field(default_factory=list)
     submitted_at: datetime

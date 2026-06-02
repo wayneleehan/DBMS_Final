@@ -1,4 +1,6 @@
-const BACKEND_URL = "http://localhost:8000/api/v1/visits";
+const API_BASE = "http://localhost:8000/api/v1";
+const BACKEND_URL = `${API_BASE}/visits`;
+let csrfToken = null;
 
 // 後端回的 4 個 status 對應到工具列圖示徽章的視覺
 // (text 限制 4 字元;太長會被裁掉)
@@ -29,10 +31,14 @@ async function checkVisit(tabId, url) {
   try {
     const hostname = new URL(url).hostname;
     const ip = await resolveIP(hostname);
+    const csrf = await getCsrfToken();
+    const headers = { "Content-Type": "application/json" };
+    if (csrf) headers["X-CSRF-Token"] = csrf;
 
     const res = await fetch(BACKEND_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      headers,
       body: JSON.stringify({
         url,
         visited_at: new Date().toISOString(),
@@ -56,6 +62,22 @@ async function checkVisit(tabId, url) {
     maybeNotify(data);
   } catch (err) {
     console.error(` Network error for ${url}:`, err);
+  }
+}
+
+async function getCsrfToken() {
+  if (csrfToken) return csrfToken;
+  try {
+    const res = await fetch(`${API_BASE}/auth/csrf`, {
+      method: "GET",
+      credentials: "include",
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    csrfToken = data.csrf_token ?? null;
+    return csrfToken;
+  } catch {
+    return null;
   }
 }
 

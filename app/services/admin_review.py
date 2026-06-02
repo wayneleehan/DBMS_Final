@@ -56,6 +56,7 @@ def process_report_verdict(
             action_type="REVIEW_REPORT",
             old_data={"website_status": old_status, "risk_score": old_score},
             new_data={
+                "report_id": request.report_id,
                 "site_id": site_id,
                 "website_status": new_status,
                 "risk_score": new_score,
@@ -119,6 +120,9 @@ def process_admin_adjudication(db: Connection, admin_id: int, request: AdminRevi
             action_type="REVIEW_APPEAL",
             old_data={"appeal_status": details["Appeal_Status"], "website_status": old_status},
             new_data={
+                "appeal_id": request.appeal_id,
+                "report_id": details["Report_ID"],
+                "site_id": site_id,
                 "appeal_status": request.decision,
                 "website_status": new_status,
                 "ruling": request.ruling_result,

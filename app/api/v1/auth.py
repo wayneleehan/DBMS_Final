@@ -5,6 +5,7 @@ Cookie session 機制由 starlette.middleware.sessions.SessionMiddleware 處理
 """
 
 import time
+import secrets
 from collections import defaultdict, deque
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -23,9 +24,18 @@ from app.crud import user as user_crud
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
+CSRF_SESSION_KEY = "csrf_token"
 _LOGIN_WINDOW_SECONDS = 5 * 60
 _LOGIN_MAX_ATTEMPTS = 5
 _login_attempts: dict[tuple[str, str], deque[float]] = defaultdict(deque)
+
+
+def ensure_csrf_token(request: Request) -> str:
+    token = request.session.get(CSRF_SESSION_KEY)
+    if not token:
+        token = secrets.token_urlsafe(32)
+        request.session[CSRF_SESSION_KEY] = token
+    return token
 
 
 def _login_rate_key(request: Request, email: str) -> tuple[str, str]:
@@ -66,7 +76,7 @@ def login(request: Request, payload: LoginRequest, db: Connection = Depends(get_
     _clear_failed_logins(request, payload.email)
     request.session["role"] = info["role"]
     request.session["principal_id"] = info["id"]
-    return LoginResponse(ok=True, user=UserInfo(**info))
+    return LoginResponse(ok=True, user=UserInfo(**info), csrf_token=ensure_csrf_token(request))
 
 
 @router.post("/logout", response_model=LogoutResponse)
@@ -90,6 +100,14 @@ def get_me(request: Request, db: Connection = Depends(get_db)):
         request.session.clear()
         raise HTTPException(status_code=401, detail="登入狀態已失效,請重新登入")
     return UserInfo(**info)
+
+
+@router.get("/csrf")
+def get_csrf_token(request: Request):
+    """回傳目前 session 的 CSRF token。需已登入。"""
+    if not request.session.get("principal_id"):
+        raise HTTPException(status_code=401, detail="尚未登入")
+    return {"csrf_token": ensure_csrf_token(request)}
 
 
 @router.post("/register", response_model=LoginResponse, status_code=201)
@@ -117,4 +135,4 @@ def register(request: Request, payload: RegisterRequest, db: Connection = Depend
     request.session["role"] = "user"
     request.session["principal_id"] = user_id
 
-    return LoginResponse(ok=True, user=UserInfo(**info))
+    return LoginResponse(ok=True, user=UserInfo(**info), csrf_token=ensure_csrf_token(request))

@@ -15,19 +15,29 @@ export function AdminReview({ onOpen }) {
   const [loading, setLoading] = React.useState(true);
   const [err, setErr] = React.useState(null);
 
-  // 載入清單 + 計數;filter 改變要重抓清單
-  React.useEffect(() => {
-    setLoading(true);
+  const loadQueue = React.useCallback((options = {}) => {
+    if (!options.silent) setLoading(true);
     setErr(null);
     const statusParam = (filter === "all") ? null : filter;
-    Promise.all([
+    return Promise.all([
       API.getReviewQueue(statusParam),
       API.getReviewQueueCounts(),
     ])
       .then(([queue, c]) => { setRows(queue); setCounts(c); })
       .catch((e) => setErr(e.message || "載入失敗"))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!options.silent) setLoading(false);
+      });
   }, [filter]);
+
+  // 載入清單 + 計數;filter 改變要重抓清單，頁面停留時定期刷新新申訴
+  React.useEffect(() => {
+    loadQueue();
+    const timer = window.setInterval(() => {
+      loadQueue({ silent: true });
+    }, 10000);
+    return () => window.clearInterval(timer);
+  }, [loadQueue]);
 
   const filters = [
     { id: "all", label: "全部", count: counts.pending + counts.appealing },
@@ -46,7 +56,10 @@ export function AdminReview({ onOpen }) {
       cat: r.category || "—",
       status: r.case_status,
       url: r.url,
+      domain: r.domain || extractHostname(r.url),
       risk: Math.round(r.risk_score),
+      report_count: Number(r.report_count || 0),
+      is_new_domain: Boolean(r.is_new_domain),
       submitter: r.submitter_name,
       submitter_id: r.submitter_id,
       reputation: Math.round(r.submitter_reputation || 0),
@@ -140,11 +153,23 @@ export function ReviewDetail({ caseData, onBack }) {
   const [done, setDone] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [submitErr, setSubmitErr] = React.useState(null);
+  const [history, setHistory] = React.useState([]);
+  const [historyLoading, setHistoryLoading] = React.useState(true);
+  const [historyErr, setHistoryErr] = React.useState(null);
 
   // 兩種案件型別分別走不同 API:
   //   申訴(type='申訴'):走 /admin/review,把 verdict 轉成 Approved/Rejected
   //   舉報(type='舉報'):走 /admin/report-verdict,直接送 verdict
   const isAppeal = c.type === "申訴";
+
+  React.useEffect(() => {
+    setHistoryLoading(true);
+    setHistoryErr(null);
+    API.getCaseHistory({ type: c.type, raw_id: c.raw_id })
+      .then(setHistory)
+      .catch((e) => setHistoryErr(e.message || "載入歷史紀錄失敗"))
+      .finally(() => setHistoryLoading(false));
+  }, [c.type, c.raw_id]);
 
   // 申訴 case 的 verdict → decision 映射:
   //   safe → Approved(申訴通過,撤回對網站的負面判定)
@@ -238,21 +263,23 @@ export function ReviewDetail({ caseData, onBack }) {
               <div className="grid cols-4" style={{ gap: 14 }}>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 6 }}>風險分數</div>
-                  <RiskRing value={c.risk || 88} size={56} />
+                  <RiskRing value={c.risk ?? 0} size={56} />
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 6 }}>目前狀態</div>
                   <StatusBadge status={normalizeWebsiteStatus(c.website_status)} />
-                  <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 6 }}>已進入觀察</div>
+                  <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 6 }}>{c.domain || "未紀錄網域"}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 6 }}>累計舉報</div>
-                  <div className="num" style={{ fontSize: 24, fontWeight: 600 }}>218</div>
+                  <div className="num" style={{ fontSize: 24, fontWeight: 600 }}>{c.report_count}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 6 }}>網域註冊</div>
-                  <div style={{ fontSize: 14, fontWeight: 500 }}>3 天前</div>
-                  <div style={{ fontSize: 11, color: "var(--danger)", marginTop: 2 }}>● 新註冊網域</div>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>{c.is_new_domain ? "30 天內" : "未紀錄"}</div>
+                  {c.is_new_domain && (
+                    <div style={{ fontSize: 11, color: "var(--danger)", marginTop: 2 }}>● 新註冊網域</div>
+                  )}
                 </div>
               </div>
             </div>
@@ -264,7 +291,7 @@ export function ReviewDetail({ caseData, onBack }) {
             <div className="card-body">
               <div className="section-title">舉報理由</div>
               <p style={{ fontSize: 14, lineHeight: 1.7, color: "var(--text-2)", margin: "0 0 20px" }}>
-                {c.reason || "假冒銀行登入頁，UI 與官方相似度極高，要求用戶輸入網銀帳號密碼與 OTP，並以「帳戶異常」為由誘導匯款。"}
+                {c.reason || "使用者未填寫補充理由。"}
               </p>
               <div className="section-title">證據檔案</div>
               <EvidenceGrid files={c.evidence || []} />
@@ -275,28 +302,7 @@ export function ReviewDetail({ caseData, onBack }) {
           <div className="card">
             <div className="card-h"><h3>歷史紀錄</h3><span className="sub">過往審核與申訴</span></div>
             <div className="card-body">
-              <div className="timeline">
-                <div className="tl-item orange">
-                  <div className="time">2026-05-13 09:14</div>
-                  <div className="what">{c.submitter} 提交{c.type}</div>
-                  <div className="who">附帶 3 件證據</div>
-                </div>
-                <div className="tl-item warn">
-                  <div className="time">2026-05-10 14:08</div>
-                  <div className="what">系統自動標記為「可疑」</div>
-                  <div className="who">基於 47 筆使用者舉報</div>
-                </div>
-                <div className="tl-item">
-                  <div className="time">2026-05-08 11:32</div>
-                  <div className="what">第一筆舉報送入</div>
-                  <div className="who">由 王彥廷（信譽 612）提交</div>
-                </div>
-                <div className="tl-item">
-                  <div className="time">2026-05-05</div>
-                  <div className="what">網域註冊</div>
-                  <div className="who">註冊國：俄羅斯 · WHOIS 隱匿</div>
-                </div>
-              </div>
+              <CaseHistoryTimeline loading={historyLoading} error={historyErr} items={history} />
             </div>
           </div>
         </div>
@@ -334,6 +340,37 @@ export function ReviewDetail({ caseData, onBack }) {
       </div>
     </div>
   );
+}
+
+function CaseHistoryTimeline({ loading, error, items }) {
+  if (loading) {
+    return <div style={{ textAlign: "center", padding: 20, color: "var(--text-3)" }}>載入中…</div>;
+  }
+  if (error) {
+    return <div style={{ textAlign: "center", padding: 20, color: "#B91C1C" }}>{error}</div>;
+  }
+  if (!items.length) {
+    return <div className="empty" style={{ padding: 18 }}><div className="ic">{I.clock}</div>目前沒有歷史紀錄</div>;
+  }
+  return (
+    <div className="timeline">
+      {items.map((item, i) => (
+        <div key={`${item.title}-${item.time}-${i}`} className={"tl-item " + (item.tone || "")}>
+          <div className="time">{item.time || "—"}</div>
+          <div className="what">{item.title}</div>
+          <div className="who">{item.detail || "—"}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function extractHostname(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
 }
 
 function EvidenceGrid({ files }) {

@@ -29,7 +29,7 @@ async def submit_appeal(
     contact_info: Optional[str] = Form(None),
     files: Optional[List[UploadFile]] = File(None), # 用 UploadFile 接收二進位檔案
     db: Session = Depends(get_db),
-    _user: dict = Depends(require_user),
+    current_user: dict = Depends(require_user),
     ):
     """
     使用者提交申訴或再申訴。
@@ -45,7 +45,12 @@ async def submit_appeal(
             contact_info=contact_info
         )
          
-        result =await appeal_service.process_appeal_submission(db, request_data,files)
+        result = await appeal_service.process_appeal_submission(
+            db,
+            request_data,
+            files,
+            user_id=current_user["id"],
+        )
         return AppealResponse(**result)
     
     except HTTPException:

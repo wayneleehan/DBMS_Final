@@ -40,6 +40,19 @@ def get_review_queue_counts(
     return admin_crud.get_review_queue_counts(db)
 
 
+@router.get("/case-history", response_model=list)
+def get_case_history(
+    case_type: str = Query(..., description="案件類型:'舉報' / '申訴'"),
+    raw_id: int = Query(..., ge=1, description="Report_ID 或 Appeal_ID"),
+    db: Connection = Depends(get_db),
+    _admin: dict = Depends(require_admin),
+):
+    """取得單一審核案件的歷史紀錄,給網址審核 detail timeline 使用。"""
+    if case_type not in ("舉報", "申訴"):
+        raise HTTPException(status_code=400, detail="case_type 必須是 '舉報' 或 '申訴'")
+    return admin_crud.get_case_history(db, case_type=case_type, raw_id=raw_id)
+
+
 @router.post("/review", response_model=AdminReviewResponse)
 def submit_admin_review(
     request: AdminReviewRequest,
